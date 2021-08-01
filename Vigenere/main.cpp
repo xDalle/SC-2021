@@ -8,7 +8,7 @@
 char matrix[LETTERS+1][LETTERS+1];
 
 void setupMatrix(char matrix[LETTERS+1][LETTERS+1]){
-    int i, j, counter = 0, flagCounter = 1;
+    int i, j, flagCounter = 1;
 
     matrix[0][0] = 32; // ascii [space]
 
@@ -23,7 +23,6 @@ void setupMatrix(char matrix[LETTERS+1][LETTERS+1]){
                 flagCounter = 0;
             }
         }
-        counter++;
         flagCounter = 1;
     }
 }
