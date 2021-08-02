@@ -91,7 +91,6 @@ void decrypt_without_key(std::string ciphertext){
     ptr = &ciphertext_treated[0];
 
     std::map<std::string, int> F;
-    std::string actual_ngram;
 
     for(i = 0; i < ngram_quantity; i++, ptr++){
         for(j = 0; j < NGRAM_SIZE; j++){
@@ -127,7 +126,7 @@ int main()
 
     if(alt == 2){
         while(alt2 != 1 && alt2 != 2){
-            std::cout << "\nVocê sabe a key para decifragem?\n\n1 - Sim.\n2 - Não.\n" << std::endl;
+            std::cout << "\nVocÃª sabe a key para decifragem?\n\n1 - Sim.\n2 - NÃ£o.\n" << std::endl;
             std::cin >> alt2;
         }
     }
