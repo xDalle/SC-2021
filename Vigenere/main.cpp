@@ -2,8 +2,11 @@
 #include <string>
 #include <limits>
 #include <algorithm>
+#include <locale.h>
+#include <map>
 
 #define LETTERS 26
+#define NGRAM_SIZE 3
 
 char matrix[LETTERS+1][LETTERS+1];
 
@@ -65,12 +68,53 @@ std::string decrypt(std::string ciphertext, std::string key){
     return plaintext;
 }
 
+/*
+    1. Determine key length
+    2. Break up ciphertext (based on key length)
+    3. Use frequency analysis on each part
+*/
+
 void decrypt_without_key(std::string ciphertext){
+    int i, j;
+    std::string ciphertext_treated;
+    char *ptr = &ciphertext[0];
+
+    for(i = 0; (unsigned)i < ciphertext.size(); i++){
+        if(isalpha(ptr[i])){
+            ciphertext_treated.push_back(ptr[i]);
+        }
+    }
+
+    int ngram_quantity = (ciphertext_treated.size()) - NGRAM_SIZE + 1;
+    char ngrams[ngram_quantity][NGRAM_SIZE];
+
+    ptr = &ciphertext_treated[0];
+
+    std::map<std::string, int> F;
+    std::string actual_ngram;
+
+    for(i = 0; i < ngram_quantity; i++, ptr++){
+        for(j = 0; j < NGRAM_SIZE; j++){
+            ngrams[i][j] = ptr[j];
+            ngrams[i][j+1] = '\0';
+        }
+
+        if(F.find(ngrams[i]) == F.end()){
+            F.insert(std::make_pair(ngrams[i], 1));
+        }else{
+            F[ngrams[i]]++;
+        }
+    }
+
+    for(auto& map_iterator : F) {
+        std::cout << map_iterator.first << " - " << map_iterator.second << std::endl;
+    }
 
 }
 
 int main()
 {
+    setlocale(LC_ALL, "Portuguese");
     int alt = 0, alt2 = 0;
     std::string key, plaintext, ciphertext;
     setupMatrix(matrix);
@@ -83,7 +127,7 @@ int main()
 
     if(alt == 2){
         while(alt2 != 1 && alt2 != 2){
-            std::cout << "\nVoce sabe a chave para decifragem?\n\n1 - Sim.\n2 - Nao.\n" << std::endl;
+            std::cout << "\nVocê sabe a key para decifragem?\n\n1 - Sim.\n2 - Não.\n" << std::endl;
             std::cin >> alt2;
         }
     }
@@ -103,7 +147,7 @@ int main()
 
         std::transform(plaintext.begin(), plaintext.end(), plaintext.begin(), ::toupper);
 
-        std::cout << encrypt(plaintext, key) << std::endl;
+        std::cout << "\n" << encrypt(plaintext, key) << std::endl;
     }else{
         std::cout << "Digite o ciphertext para decifrar texto: ";
         std::getline(std::cin, ciphertext);
@@ -111,9 +155,10 @@ int main()
         std::transform(ciphertext.begin(), ciphertext.end(), ciphertext.begin(), ::toupper);
 
         if(alt2 == 1){
-            std::cout << decrypt(ciphertext, key) << std::endl;
+            std::cout << "\n" << decrypt(ciphertext, key) << std::endl;
         }else{
             //std::cout << decrypt_without_key(ciphertext) << std::endl;
+            decrypt_without_key(ciphertext);
         }
     }
 
