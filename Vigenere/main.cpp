@@ -111,7 +111,7 @@ void decrypt_without_key(std::string ciphertext){
 
 }
 
-int main()
+int main(int argc, char *argv[])
 {
     setlocale(LC_ALL, "Portuguese");
     int alt = 0, alt2 = 0;
