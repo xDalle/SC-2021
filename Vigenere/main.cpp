@@ -2,8 +2,10 @@
 #include <string>
 #include <limits>
 #include <algorithm>
-#include <locale.h>
+#include <locale>
 #include <map>
+#include <vector>
+#include <set>
 
 #define LETTERS 26
 #define NGRAM_SIZE 3
@@ -73,8 +75,19 @@ std::string decrypt(std::string ciphertext, std::string key){
     2. Break up ciphertext (based on key length)
     3. Use frequency analysis on each part
 */
+std::vector<int> get_divisors_frequency(int n) {
+    std::vector<int> result = std::vector<int>();
 
-void decrypt_without_key(std::string ciphertext){
+    for (int i = 2; i <= 20; i++) {
+        if (i > n) break;
+        if (n % i == 0)
+            result.push_back(i);
+    }
+
+    return result;
+}
+
+int get_key_length(std::string ciphertext) {
     int i, j;
     std::string ciphertext_treated;
     char *ptr = &ciphertext[0];
@@ -90,7 +103,7 @@ void decrypt_without_key(std::string ciphertext){
 
     ptr = &ciphertext_treated[0];
 
-    std::map<std::string, int> F;
+    std::map<std::string, std::set<int>> F;
 
     for(i = 0; i < ngram_quantity; i++, ptr++){
         for(j = 0; j < NGRAM_SIZE; j++){
@@ -99,67 +112,115 @@ void decrypt_without_key(std::string ciphertext){
         }
 
         if(F.find(ngrams[i]) == F.end()){
-            F.insert(std::make_pair(ngrams[i], 1));
-        }else{
-            F[ngrams[i]]++;
+            size_t pos = ciphertext_treated.find(ngrams[i], 0);
+            std::vector<int> positions;
+            while(pos != std::string::npos) {
+                positions.push_back(pos);
+                pos = ciphertext_treated.find(ngrams[i], pos + 1);
+            }
+
+            std::set<int> distances;
+            for (int pos_1: positions) {
+                for(int pos_2: positions) {
+                    if (pos_1 - pos_2 > 0) distances.insert(std::abs(pos_1 - pos_2));
+                }
+            }
+
+            if (distances.size() > 0)
+                F.insert(std::make_pair(ngrams[i], distances));
         }
+
     }
 
     for(auto& map_iterator : F) {
-        std::cout << map_iterator.first << " - " << map_iterator.second << std::endl;
+        std::cout << map_iterator.first << " - ";
+
+        for (int distance: map_iterator.second) {
+            std::cout << distance << ", ";
+        }
+
+        std::cout << std::endl;
     }
+
+    std::map<int, int> lengths;
+    for(auto& map_iterator : F) {
+        for (int distance: map_iterator.second) {
+            std::vector<int> lens = get_divisors_frequency(distance);
+
+            for (int len: lens) {
+                if (lengths.find(len) == lengths.end())
+                    lengths.insert(std::make_pair(len, 1));
+                else lengths[len]++;
+            }
+        }
+    }
+
+    for(auto& length : lengths)
+        std::cout << length.first << ": " << length.second << std::endl;
 
 }
 
-int main(int argc, char *argv[])
+
+void decrypt_without_key(std::string ciphertext){
+    get_key_length(ciphertext);
+}
+
+int main()
 {
-    setlocale(LC_ALL, "Portuguese");
-    int alt = 0, alt2 = 0;
+    setlocale(LC_ALL, "");
+    int alt_menu = 0, alt_decrypt_key = 0;
     std::string key, plaintext, ciphertext;
     setupMatrix(matrix);
     //printMatrix(matrix);
 
-    while(alt != 1 && alt != 2){
-        std::cout << "\nO que deseja fazer?\n\n1 - Cifrar texto.\n2 - Decifrar texto.\n" << std::endl;
-        std::cin >> alt;
-    }
-
-    if(alt == 2){
-        while(alt2 != 1 && alt2 != 2){
-            std::cout << "\nVocê sabe a key para decifragem?\n\n1 - Sim.\n2 - Não.\n" << std::endl;
-            std::cin >> alt2;
+    while(alt_menu != 3){
+        while(alt_menu < 1 || alt_menu > 3){
+            std::cout << "\nO que deseja fazer?\n\n1 - Cifrar mensagem.\n2 - Decifrar mensagem.\n3 - Sair.\n" << std::endl;
+            std::cin >> alt_menu;
         }
-    }
 
-    if(alt2 != 2){
-        std::cout << "\nDigite a key: ";
-        std::cin >> key;
+        if(alt_menu == 3){
+            return 1;
+        }
 
-        std::transform(key.begin(), key.end(), key.begin(), ::toupper);
-    }
+        if(alt_menu == 2){
+            while(alt_decrypt_key != 1 && alt_decrypt_key != 2){
+                std::cout << "\nVoce sabe a chave para decifragem?\n\n1 - Sim.\n2 - Nao.\n" << std::endl;
+                std::cin >> alt_decrypt_key;
+            }
+        }
 
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        if(alt_decrypt_key != 2){
+            std::cout << "\nDigite a chave: ";
+            std::cin >> key;
 
-    if(alt == 1){
-        std::cout << "Digite o plaintext para cifrar texto: ";
-        std::getline(std::cin, plaintext);
+            std::transform(key.begin(), key.end(), key.begin(), ::toupper);
+        }
 
-        std::transform(plaintext.begin(), plaintext.end(), plaintext.begin(), ::toupper);
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
-        std::cout << "\n" << encrypt(plaintext, key) << std::endl;
-    }else{
-        std::cout << "Digite o ciphertext para decifrar texto: ";
-        std::getline(std::cin, ciphertext);
+        if(alt_menu == 1){
+            std::cout << "Digite a mensagem a ser cifrada: ";
+            std::getline(std::cin, plaintext);
 
-        std::transform(ciphertext.begin(), ciphertext.end(), ciphertext.begin(), ::toupper);
+            std::transform(plaintext.begin(), plaintext.end(), plaintext.begin(), ::toupper);
 
-        if(alt2 == 1){
-            std::cout << "\n" << decrypt(ciphertext, key) << std::endl;
+            std::cout << "\nMensagem cifrada: " << encrypt(plaintext, key) << std::endl;
         }else{
-            //std::cout << decrypt_without_key(ciphertext) << std::endl;
-            decrypt_without_key(ciphertext);
-        }
-    }
+            std::cout << "Digite a mensagem a ser decifrada: ";
+            std::getline(std::cin, ciphertext);
 
+            std::transform(ciphertext.begin(), ciphertext.end(), ciphertext.begin(), ::toupper);
+
+            if(alt_decrypt_key == 1){
+                std::cout << "\nMensagem decifrada: " << decrypt(ciphertext, key) << std::endl;
+            }else{
+                //std::cout << decrypt_without_key(ciphertext) << std::endl;
+                decrypt_without_key(ciphertext);
+            }
+        }
+
+        alt_menu = alt_decrypt_key = 0; //Reseta op��es do menu
+    }
     return 0;
 }
