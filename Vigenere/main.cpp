@@ -219,6 +219,7 @@ void decrypt_without_key(std::string ciphertext){
         }
     }
 
+    /* calcular a partir das chaves separadas o IC de cada um, e verificar se a média é mais próxima de INGLES ou PORTUGUES */
     for(i = 0; i < key_size; i++){
         std::cout << separate_key[i] << std::endl;
     }
