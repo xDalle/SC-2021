@@ -6,9 +6,15 @@
 #include <map>
 #include <vector>
 #include <set>
+#include <string.h>
 
 #define LETTERS 26
 #define NGRAM_SIZE 3
+
+/* https://en.wikipedia.org/wiki/Index_of_coincidence */
+#define ENGLISH_IC 1.73
+#define PORTUGUESE_IC 1.94
+
 
 char matrix[LETTERS+1][LETTERS+1];
 
@@ -132,6 +138,7 @@ int get_key_length(std::string ciphertext) {
 
     }
 
+    /*
     for(auto& map_iterator : F) {
         std::cout << map_iterator.first << " - ";
 
@@ -141,7 +148,8 @@ int get_key_length(std::string ciphertext) {
 
         std::cout << std::endl;
     }
-
+    */
+   
     std::map<int, int> lengths;
     for(auto& map_iterator : F) {
         for (int distance: map_iterator.second) {
@@ -155,14 +163,105 @@ int get_key_length(std::string ciphertext) {
         }
     }
 
+    int k = 0, choice = -1;
     for(auto& length : lengths)
-        std::cout << length.first << ": " << length.second << std::endl;
+        std::cout << ++k << ": Tamanho: " << length.first << ": frequência " << length.second << std::endl;
 
+    do {
+        std::cout << "Escolha um indice do tamanho de chave: " << std::endl;
+        std::cin >> choice;
+    } while (choice < -1 or choice > lengths.size());
+    
+    auto it = lengths.begin();
+    std::advance(it, choice - 1);
+    return it->first;
 }
 
 
 void decrypt_without_key(std::string ciphertext){
-    get_key_length(ciphertext);
+    int i, j;
+    int key_size = get_key_length(ciphertext);
+    std::string ciphertext_treated;
+    char *ptr = &ciphertext[0];
+
+    for(i = 0; (unsigned)i < ciphertext.size(); i++){
+        if(isalpha(ptr[i])){
+            ciphertext_treated.push_back(ptr[i]);
+        }
+    }
+
+    std::cout << "Tamanho da chave: " << key_size << std::endl;
+
+    std::map<char, int> letter_frequency;
+
+    for(i = 0; (unsigned)i < ciphertext_treated.size(); i++){
+        if (letter_frequency.find(ciphertext_treated[i]) == letter_frequency.end())
+            letter_frequency.insert(std::make_pair(ciphertext_treated[i], 1));
+        else letter_frequency[ciphertext_treated[i]]++;
+    }
+
+    float IC = 0;
+    for(auto e: letter_frequency) {
+        IC += e.second * (e.second - 1);
+    }
+
+    IC /= (ciphertext_treated.size() * (ciphertext_treated.size() - 1));
+    std::cout << "\nIC: " << IC << std::endl;
+
+    char separate_key[key_size][(ciphertext_treated.size()/key_size)+key_size];
+    int count_char = 0;
+
+    for(i = 0; (unsigned)i < ciphertext_treated.size(); i++){
+        separate_key[i % key_size][count_char] = ciphertext_treated[i];
+        separate_key[i % key_size][count_char+1] = '\0';
+        if((i % key_size) == (key_size - 1)){
+            count_char++;
+        }
+    }
+
+    for(i = 0; i < key_size; i++){
+        std::cout << separate_key[i] << std::endl;
+    }
+
+    /* para cada string deve-se calcular o IC, e deslocar o caractere para o próximo */
+    /* o que mais se aproximar ao IC da língua, é o certo */
+
+    char possible_strings[LETTERS][(ciphertext_treated.size()/key_size)+key_size];
+
+    int key_char = 0;
+    std::string actual_possible;
+    float possible_IC[LETTERS];
+    
+    while(key_char < key_size){
+        strcpy(possible_strings[0], separate_key[key_char]);
+        for(i = 1; i < LETTERS; i++){
+            for(j = 0; j < strlen(separate_key[key_char]); j++){
+                if((separate_key[key_char][j] + i) > 'Z'){
+                    possible_strings[i][j] = (separate_key[key_char][j] + i) % 'Z' + 64;
+                }else{
+                    possible_strings[i][j] = separate_key[key_char][j] + i;
+                }
+                possible_strings[i][j+1] = '\0';
+            }
+        }
+
+        //std::cout << possible_strings[1] << std::endl;
+
+        /* calcular IC e decidir a melhor das possible_strings */
+        for(i = 0; i < LETTERS; i++){
+            for (char c: possible_strings[i]) {
+                actual_possible.push_back(c);
+            }
+            /* calcula IC e guarda em possible_IC[i] */
+            /* reseta map */
+        }
+
+        key_char++;
+    }
+
+    /* verifica qual IC das possible_IC aproxima mais de ENGLISH_IC OU PORTUGUESE_IC */
+    /* cabou essa porra */
+
 }
 
 int main()
@@ -207,7 +306,7 @@ int main()
 
             std::cout << "\nMensagem cifrada: " << encrypt(plaintext, key) << std::endl;
         }else{
-            std::cout << "Digite a mensagem a ser decifrada: ";
+            std::cout << "\nDigite a mensagem a ser decifrada: ";
             std::getline(std::cin, ciphertext);
 
             std::transform(ciphertext.begin(), ciphertext.end(), ciphertext.begin(), ::toupper);
