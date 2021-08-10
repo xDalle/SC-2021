@@ -9,41 +9,36 @@
 #include <set>
 #include <cmath>
 #include <string.h>
+#include <stdlib.h>
+#include <limits>
 
 #define LETTERS 26
 #define NGRAM_SIZE 3
 #define MIN_KEY_LENGTH 2
 #define MAX_KEY_LENGTH 20
+#define RED     "\x1b[31m"
+#define GREEN   "\x1b[32m"
+#define RESET   "\x1b[0m"
 
 char matrix[LETTERS+1][LETTERS+1];
 
 void setupMatrix(char matrix[LETTERS+1][LETTERS+1]){
-    int i, j, flagCounter = 1;
+    int i, j, flag_counter = 1;
 
     matrix[0][0] = 32; // ascii [space]
 
     for(i = 1; i < LETTERS+1; i++){
-        matrix[i][0] = matrix[0][i] = i + 64; // ascii A-Z
+        matrix[i][0] = matrix[0][i] = i + 'A' - 1; // ascii A-Z
     }
 
     for(i = 1; i < LETTERS+1; i++){
         for(j = 1; j < LETTERS+1; j++){
-            matrix[i][j] = j + 64 + (i-1) * flagCounter - (27-i) * !flagCounter;
+            matrix[i][j] = j + 'A' - 1 + (i-1) * flag_counter - (LETTERS+1-i) * !flag_counter;
             if(matrix[i][j] == 'Z'){
-                flagCounter = 0;
+                flag_counter = 0;
             }
         }
-        flagCounter = 1;
-    }
-}
-
-void printMatrix(char matrix[LETTERS+1][LETTERS+1]){
-    int i, j;
-    for(i = 0; i < LETTERS+1; i++){
-        for(j = 0; j < LETTERS+1; j++){
-            std::cout << matrix[i][j] << " ";
-        }
-        std::cout << "\n";
+        flag_counter = 1;
     }
 }
 
@@ -65,11 +60,15 @@ std::string decrypt(std::string ciphertext, std::string key){
     int i = 0;
     std::string plaintext;
 
+    if(key.size() == 0){
+        std::cout << RED << "\nMensagem muito pequena para decifragem sem chave!" << RESET << std::endl;
+        return " ";
+    }
     for(char c : ciphertext){
         if(c < 'A' || c > 'Z')
             plaintext.push_back(c);
         else
-            plaintext.push_back((((int)c - key[i++ % key.size()] + 26) % 26) + 'A');
+            plaintext.push_back((((int)c - key[i++ % key.size()] + LETTERS) % LETTERS) + 'A');
     }
 
     return plaintext;
@@ -80,6 +79,7 @@ std::string decrypt(std::string ciphertext, std::string key){
     2. Break up ciphertext (based on key length)
     3. Use frequency analysis on each part
 */
+
 std::vector<int> get_divisors(int n) {
     int i;
     std::vector<int> result = std::vector<int>();
@@ -93,8 +93,8 @@ std::vector<int> get_divisors(int n) {
     return result;
 }
 
-int get_key_length(std::string ciphertext) {
-    int i, j;
+int get_key_length(std::string ciphertext, bool user_choose_keysize) {
+    int i, j, k;
     std::string ciphertext_treated;
     char *ptr = &ciphertext[0];
 
@@ -149,7 +149,7 @@ int get_key_length(std::string ciphertext) {
         std::cout << std::endl;
     }
     */
-   
+
     std::map<int, int> lengths;
     for(auto& map_iterator : F) {
         for (int distance: map_iterator.second) {
@@ -163,10 +163,11 @@ int get_key_length(std::string ciphertext) {
         }
     }
 
-    int k = 0, choice = -1;
-    std::cout << "\n~~ Frequência dos n-gramas e prováveis tamanhos de chave ~~" << std::endl;
-    for(auto& length : lengths)
-        std::cout << "Tamanho: " << length.first << ": frequência " << length.second << std::endl;
+    if(user_choose_keysize){
+        std::cout << GREEN << "\n~~ Frequência dos n-gramas [" << NGRAM_SIZE << "] " << "e prováveis tamanhos de chave ~~\n" << RESET << std::endl;
+        for(auto& length : lengths)
+            std::cout << GREEN << "[" << length.first << "] -> "<< RESET << "Frequência: " << length.second << std::endl;
+    }
 
     float ic_by_key_length[MAX_KEY_LENGTH] = {0.0};
     float ic_all_key[MAX_KEY_LENGTH] = {0.0};
@@ -207,38 +208,38 @@ int get_key_length(std::string ciphertext) {
         }
     }
 
-
-    for(i = 0; i < MAX_KEY_LENGTH-1; i++){
-        if(!std::isnan(ic_all_key[i]))
-            std::cout << "\nIC DA CHAVE DE TAMANHO [" << i+2 << "] = " << ic_all_key[i];
-        else
-            std::cout << "\nIC DA CHAVE DE TAMANHO [" << i+2 << "] = inviável!";
-    }
-
-    for(i = 0; i < MAX_KEY_LENGTH-1; i++){
-        if(ic_all_key[i] > biggest_ic){
-            biggest_ic = ic_all_key[i];
-            probable_key = i+2;
+    if(user_choose_keysize){
+        std::cout << GREEN << "\n~~ Índice de coincidência das chaves de cada tamanho ~~" << RESET << std::endl;
+        for(i = 0; i < MAX_KEY_LENGTH-1; i++){
+            if(!std::isnan(ic_all_key[i]))
+                std::cout << GREEN << "\n[" << i+2 << "] -> " << RESET << ic_all_key[i];
+            else
+                std::cout << GREEN << "\n[" << i+2 << "] -> " << RESET << "inviável!";
+        }
+        std::cout << RED << "\n\nEscolha o tamanho da chave: " << RESET;
+        std::cin >> probable_key;
+    }else{
+        for(i = 0; i < MAX_KEY_LENGTH-1; i++){
+            if(ic_all_key[i] > biggest_ic){
+                biggest_ic = ic_all_key[i];
+                probable_key = i+2;
+            }
         }
     }
-
-    /*
-    if(probable_key)
-    */
 
     return probable_key;
 }
 
-std::string decrypt_without_key(std::string ciphertext){
+std::string decrypt_without_key(std::string ciphertext, bool user_choose_keysize){
     int i, j, k;
-    int key_size = get_key_length(ciphertext);
+    int key_size = get_key_length(ciphertext, user_choose_keysize);
     std::string ciphertext_treated;
     std::string password;
     char *ptr = &ciphertext[0];
 
     float english_letter_frequency[LETTERS] = {0.08167, 0.01492, 0.02782, 0.04253, 0.12702, 0.02228, 0.02015,
                                                 0.06094, 0.06966, 0.00153, 0.00772, 0.04025, 0.02406, 0.06749,
-                                                0.07507, 0.01929, 0.00095, 0.05987, 0.06327, 0.09056, 
+                                                0.07507, 0.01929, 0.00095, 0.05987, 0.06327, 0.09056,
                                                 0.02758, 0.00978, 0.02360, 0.0015, 0.01974, 0.00074};
 
     float portuguese_letter_frequency[LETTERS] = {0.1463, 0.0104, 0.0388, 0.0499, 0.1257, 0.0102, 0.013,
@@ -252,8 +253,6 @@ std::string decrypt_without_key(std::string ciphertext){
         }
     }
 
-    std::cout << "\nTamanho da chave: " << key_size << std::endl;
-
     std::string separate_key[key_size];
     std::string actual_string;
 
@@ -262,33 +261,36 @@ std::string decrypt_without_key(std::string ciphertext){
     }
 
     std::map<char, float> letter_frequency;
-    float coset[LETTERS] = {0.0};
-    float chi_square[key_size];
+    float coset_english[LETTERS] = {0.0};
+    float chi_square_english[key_size];
+    int index_of_key_english[key_size];
+    float sum_english = 0.0;
+    float coset_portuguese[LETTERS] = {0.0};
+    float chi_square_portuguese[key_size];
+    int index_of_key_portuguese[key_size];
+    float sum_portuguese = 0.0;
+
     int coset_iterator = 0;
-    int index_of_key[key_size];
 
     /* calcular a partir das chaves separadas o IC de cada um, e verificar se a média é mais próxima de INGLES ou PORTUGUES */
     for(j = 0; j < key_size; j++){
-        chi_square[j] = 100000.00;
-        index_of_key[j] = -1;
+        chi_square_english[j] = chi_square_portuguese[j] = std::numeric_limits<int>::max();
+        index_of_key_english[j] = index_of_key_portuguese[j] = -1;
         actual_string = separate_key[j];
         for(k = 0; k < LETTERS; k++){
             for(char c = 'A'; c <= 'Z'; c++){
                 letter_frequency.insert(std::make_pair(c, 0));
             }
-            coset[k] = 0.0;
+            coset_english[k] = coset_portuguese[k] = 0.0;
             //std::cout << "VALIDATE STRING [" << k << "] = " << actual_string << std::endl;
             for(i = 0; (unsigned)i < actual_string.size(); i++){
                 letter_frequency[actual_string[i]]+= 1.0;
             }
 
-            for(auto e: letter_frequency){
-                //std::cout << "LETTER " << e.first << ": " << e.second << std::endl;
-            }
-
             for(auto e: letter_frequency) {
                 e.second /= (float)actual_string.size();
-                coset[k] += (pow((e.second - english_letter_frequency[coset_iterator]), 2))/(english_letter_frequency[coset_iterator]);
+                coset_english[k] += (pow((e.second - english_letter_frequency[coset_iterator]), 2))/(english_letter_frequency[coset_iterator]);
+                coset_portuguese[k] += (pow((e.second - portuguese_letter_frequency[coset_iterator]), 2))/(portuguese_letter_frequency[coset_iterator]);
                 coset_iterator++;
             }
 
@@ -303,30 +305,83 @@ std::string decrypt_without_key(std::string ciphertext){
                 }
             }
 
-            if(coset[k] < chi_square[j]){
-                chi_square[j] = coset[k];
-                index_of_key[j] = k;
+            if(coset_english[k] < chi_square_english[j]){
+                chi_square_english[j] = coset_english[k];
+                index_of_key_english[j] = k;
+            }
+
+            if(coset_portuguese[k] < chi_square_portuguese[j]){
+                chi_square_portuguese[j] = coset_portuguese[k];
+                index_of_key_portuguese[j] = k;
             }
         }
     }
-    
+
     for(i = 0; i < key_size; i++){
-        password.push_back((char)index_of_key[i]+'A');
+        sum_english+= chi_square_english[i];
+        sum_portuguese+= chi_square_portuguese[i];
     }
 
+    sum_english/= key_size;
+    sum_portuguese/= key_size;
+
+    if(sum_english < sum_portuguese){
+        for(i = 0; i < key_size; i++){
+            password.push_back((char)index_of_key_english[i]+'A');
+        }
+    }else{
+        for(i = 0; i < key_size; i++){
+            password.push_back((char)index_of_key_portuguese[i]+'A');
+        }
+    }
+
+    std::vector<int> password_divisors = get_divisors(password.size());
+
+    password_divisors.pop_back();
+
+    std::string replicated_analyzer;
+    bool replicated = true;
+    int save_replicated_size = 0;
+
+    for (auto i = password_divisors.begin(); i != password_divisors.end(); i++){
+        replicated = true;
+        replicated_analyzer.append(password, 0, *i);
+        for(j = replicated_analyzer.size(); j < password.size(); j++){
+            if(replicated_analyzer[j % replicated_analyzer.size()] != password[j]){
+                replicated = false;
+                break;
+            }
+        }
+        if(replicated){
+            save_replicated_size = replicated_analyzer.size();
+            break;
+        }
+        replicated_analyzer.clear();
+    }
+
+    std::string original_password;
+
+    if(replicated){
+        original_password.append(password, 0, save_replicated_size);
+        std::cout << GREEN << "\nTamanho da chave: " << RESET << original_password.size() << std::endl;
+        return original_password;
+    }
+
+    std::cout << GREEN << "\nTamanho da chave: " << RESET << password.size() << std::endl;
     return password;
 }
 
 int main(int argc, char *argv[]){
     setlocale(LC_ALL, "");
     int alternative_decrypt_key = 0;
+    int decrypt_ok = 2;
+    bool user_choose_keysize = false;
     std::string key, plaintext, ciphertext;
     std::string alternative = (std::string)argv[1];
     char char_of_file;
     std::ifstream file;
 
     setupMatrix(matrix);
-    //printMatrix(matrix);
 
     if(alternative != "-c" && alternative != "-d"){
         std::cout << "\n\tExecute da seguinte forma: ./vigenere.exe {-c, -d} <PATH_TO_FILE>\n" << std::endl;
@@ -341,13 +396,13 @@ int main(int argc, char *argv[]){
 
     if(alternative == "-d"){
         while(alternative_decrypt_key != 1 && alternative_decrypt_key != 2){
-            std::cout << "\n\tVocê possui a chave para decifragem?\n\n\t\t[1] Sim.\n\t\t[2] Não.\n\n\t\t";
+            std::cout << "\n\tVocê possui a chave para decifragem?\n\n\t[1] Sim.\n\t[2] Não.\n\n\t";
             std::cin >> alternative_decrypt_key;
         }
     }
 
     if(alternative_decrypt_key != 2){
-        std::cout << "\n\tDigite a chave de tamanho [2..20]: \n\n\t\t";
+        std::cout << "\n\tDigite a chave de tamanho [2..20]: \n\n\t";
         std::cin >> key;
 
         std::transform(key.begin(), key.end(), key.begin(), ::toupper);
@@ -356,28 +411,37 @@ int main(int argc, char *argv[]){
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
     if(alternative == "-c"){
-        std::cout << "Digite a mensagem a ser cifrada: ";
-        std::getline(std::cin, plaintext);
+        while(file >> std::noskipws >> char_of_file){
+            plaintext += char_of_file;
+        }
 
+        std::cout << GREEN << "\nTexto a ser cifrado: " << RESET << plaintext << std::endl;
         std::transform(plaintext.begin(), plaintext.end(), plaintext.begin(), ::toupper);
-
-        std::cout << " " << plaintext << std::endl;
-        std::cout << "\nMensagem cifrada: " << encrypt(plaintext, key) << std::endl;
+        std::cout << GREEN << "\nMensagem cifrada, utilizando a chave " << key << ": " << RESET << encrypt(plaintext, key) << std::endl;
     }else{
-        std::cout << "\nDigite a mensagem a ser decifrada: ";
-        std::getline(std::cin, ciphertext);
+        while(file >> std::noskipws >> char_of_file){
+            ciphertext += char_of_file;
+        }
 
+        std::cout << GREEN << "\nTexto a ser decifrado: " << RESET << ciphertext << std::endl;
         std::transform(ciphertext.begin(), ciphertext.end(), ciphertext.begin(), ::toupper);
-
         if(alternative_decrypt_key == 1){
-            std::cout << "\nMensagem decifrada: " << decrypt(ciphertext, key) << std::endl;
+            std::cout << GREEN << "\nMensagem decifrada: " << RESET << decrypt(ciphertext, key) << std::endl;
         }else{
-            key = decrypt_without_key(ciphertext);
-            std::cout << "\nKEY: " << key << std::endl;
-            std::cout << "\nMensagem decifrada: " << decrypt(ciphertext, key) << std::endl;
+            while(decrypt_ok != 1){
+                key = decrypt_without_key(ciphertext, user_choose_keysize);
+                std::cout << GREEN << "\nKey: " << RESET <<  key << std::endl;
+                std::cout << GREEN << "\nMensagem decifrada: " << RESET << decrypt(ciphertext, key) << std::endl;
+                std::cout << "\n\tAcertei? :)\n\n\t[1] Sim.\n\t[2] Não.\n\n\t" << std::endl;
+                std::cin >> decrypt_ok;
+                if(decrypt_ok != 1){
+                    std::cout << RED << "\nEscolha um possível tamanho da chave, com base nos N-GRAMAS e IC-VALUES." << RESET << std::endl;
+                    user_choose_keysize = true;
+                }
+            }
         }
     }
-    
+
     file.close();
     return 0;
 }
