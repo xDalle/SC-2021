@@ -1,6 +1,6 @@
-Autores:
-Lucas Dalle Rocha - 17/0016641
-Leonardo Rodrigues de Souza - 170060543
+Autores:  
+Lucas Dalle Rocha - 17/0016641  
+Leonardo Rodrigues de Souza - 170060543  
 
 O programa pode ser compilado pela utilização do Makefile, 
 com o seguinte comando em seu terminal: 
