@@ -368,7 +368,7 @@ std::string decrypt_without_key(std::string ciphertext, bool user_choose_keysize
 
     std::string original_password;
 
-    if(replicated){
+    if(replicated && !user_choose_keysize){
         original_password.append(password, 0, save_replicated_size);
         std::cout << GREEN << "\nTamanho da chave: " << RESET << original_password.size() << std::endl;
         return original_password;
