@@ -422,23 +422,27 @@ int main(int argc, char *argv[]){
             plaintext += char_of_file;
         }
 
-        std::cout << GREEN << "\nTexto a ser cifrado: " << RESET << plaintext << std::endl;
+        std::cout << GREEN << "\nTexto a ser cifrado:\n" << RESET << plaintext << std::endl;
         std::transform(plaintext.begin(), plaintext.end(), plaintext.begin(), ::toupper);
-        std::cout << GREEN << "\nMensagem cifrada, utilizando a chave " << key << ": " << RESET << encrypt(plaintext, key) << std::endl;
+        ciphertext = encrypt(plaintext, key);
+        std::transform(ciphertext.begin(), ciphertext.end(), ciphertext.begin(), ::tolower);
+        std::cout << GREEN << "\nMensagem cifrada, utilizando a chave " << key << ":\n" << RESET << ciphertext << std::endl;
     }else{
         while(file >> std::noskipws >> char_of_file){
             ciphertext += char_of_file;
         }
 
-        std::cout << GREEN << "\nTexto a ser decifrado: " << RESET << ciphertext << std::endl;
+        std::cout << GREEN << "\nTexto a ser decifrado:\n" << RESET << ciphertext << std::endl;
         std::transform(ciphertext.begin(), ciphertext.end(), ciphertext.begin(), ::toupper);
         if(alternative_decrypt_key == 1){
             std::cout << GREEN << "\nMensagem decifrada: " << RESET << decrypt(ciphertext, key) << std::endl;
         }else{
             while(decrypt_ok != 1){
                 key = decrypt_without_key(ciphertext, user_choose_keysize);
+                plaintext = decrypt(ciphertext, key);
+                std::transform(plaintext.begin(), plaintext.end(), plaintext.begin(), ::tolower);
                 std::cout << GREEN << "\nKey: " << RESET <<  key << std::endl;
-                std::cout << GREEN << "\nMensagem decifrada: " << RESET << decrypt(ciphertext, key) << std::endl;
+                std::cout << GREEN << "\nMensagem decifrada:\n" << RESET << plaintext << std::endl;
                 std::cout << "\n\tAcertei? :)\n\n\t[1] Sim.\n\t[2] Não.\n\n\t" << std::endl;
                 std::cin >> decrypt_ok;
                 if(decrypt_ok != 1){
