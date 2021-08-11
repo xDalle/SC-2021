@@ -22,6 +22,7 @@
 
 char matrix[LETTERS+1][LETTERS+1];
 
+/* Inicializando tabula recta */
 void setupMatrix(char matrix[LETTERS+1][LETTERS+1]){
     int i, j, flag_counter = 1;
 
@@ -42,6 +43,7 @@ void setupMatrix(char matrix[LETTERS+1][LETTERS+1]){
     }
 }
 
+/* Processo de cifragem de um texto limpo */
 std::string encrypt(std::string plaintext, std::string key){
     int i = 0;
     std::string ciphertext;
@@ -56,14 +58,17 @@ std::string encrypt(std::string plaintext, std::string key){
     return ciphertext;
 }
 
+/* Processo de decifragem de um criptograma */
 std::string decrypt(std::string ciphertext, std::string key){
     int i = 0;
     std::string plaintext;
-
+    
+    /* Evita memory leak ao realizar posteriores cálculos com key = 0 */
     if(key.size() == 0){
         std::cout << RED << "\nMensagem muito pequena para decifragem sem chave!" << RESET << std::endl;
         return " ";
     }
+
     for(char c : ciphertext){
         if(c < 'A' || c > 'Z')
             plaintext.push_back(c);
@@ -75,11 +80,12 @@ std::string decrypt(std::string ciphertext, std::string key){
 }
 
 /*
-    1. Determine key length
-    2. Break up ciphertext (based on key length)
-    3. Use frequency analysis on each part
+    1. Determinar o tamanho da chave
+    2. Utilizar análise de frequência para subsets do criptograma
+    3. Agora tenho a chave :)
 */
 
+/* Retorna divisores de n */
 std::vector<int> get_divisors(int n) {
     int i;
     std::vector<int> result = std::vector<int>();
@@ -93,17 +99,20 @@ std::vector<int> get_divisors(int n) {
     return result;
 }
 
+/* Usuário pode interferir na função, escolhendo diretamente o tamanho da chave, caso processo automático se engane :( */
 int get_key_length(std::string ciphertext, bool user_choose_keysize) {
     int i, j, k;
     std::string ciphertext_treated;
     char *ptr = &ciphertext[0];
 
+    /* Deixa só símbolos do alfabeto */
     for(i = 0; (unsigned)i < ciphertext.size(); i++){
         if(isalpha(ptr[i])){
             ciphertext_treated.push_back(ptr[i]);
         }
     }
 
+    /* Calcula N-Gramas de repetições */
     int ngram_quantity = (ciphertext_treated.size()) - NGRAM_SIZE + 1;
     char ngrams[ngram_quantity][NGRAM_SIZE];
 
@@ -138,18 +147,6 @@ int get_key_length(std::string ciphertext, bool user_choose_keysize) {
 
     }
 
-    /*
-    for(auto& map_iterator : F) {
-        std::cout << map_iterator.first << " - ";
-
-        for (int distance: map_iterator.second) {
-            std::cout << distance << ", ";
-        }
-
-        std::cout << std::endl;
-    }
-    */
-
     std::map<int, int> lengths;
     for(auto& map_iterator : F) {
         for (int distance: map_iterator.second) {
@@ -163,6 +160,7 @@ int get_key_length(std::string ciphertext, bool user_choose_keysize) {
         }
     }
 
+    /* Caso usuário escolha o tamanho da chave, é importante mostrar a frequência NGRAMs */
     if(user_choose_keysize){
         std::cout << GREEN << "\n~~ Frequência dos n-gramas [" << NGRAM_SIZE << "] " << "e prováveis tamanhos de chave ~~\n" << RESET << std::endl;
         for(auto& length : lengths)
@@ -178,6 +176,7 @@ int get_key_length(std::string ciphertext, bool user_choose_keysize) {
     std::map<char, int> letter_frequency;
     int key_it = 0;
 
+    /* Cálculo do índice de coincidência */
     for(j = MIN_KEY_LENGTH; j <= MAX_KEY_LENGTH; j++){
         for(i = 0; (unsigned)i < ciphertext_treated.size(); i++){
             separate_key[i % j].push_back(ciphertext_treated[i]);
@@ -208,6 +207,7 @@ int get_key_length(std::string ciphertext, bool user_choose_keysize) {
         }
     }
 
+    /* Caso usuário escolha o tamanho da chave, é importante mostrar o índice de coincidência */
     if(user_choose_keysize){
         std::cout << GREEN << "\n~~ Índice de coincidência das chaves de cada tamanho ~~" << RESET << std::endl;
         for(i = 0; i < MAX_KEY_LENGTH-1; i++){
@@ -230,6 +230,7 @@ int get_key_length(std::string ciphertext, bool user_choose_keysize) {
     return probable_key;
 }
 
+/* Faz mágica */
 std::string decrypt_without_key(std::string ciphertext, bool user_choose_keysize){
     int i, j, k;
     int key_size = get_key_length(ciphertext, user_choose_keysize);
@@ -335,6 +336,12 @@ std::string decrypt_without_key(std::string ciphertext, bool user_choose_keysize
         }
     }
 
+    /* Agora, identificamos senhas com palavras replicadas, tal como a senha inicial escolhida pelo usuário
+       seja Arara, de tamanho 5, e, sem a identificação da replicação, o programa retorna a senha como sendo 
+       AraraAraraArara, de tamanho 15. O processo de decifração ocorre com sucesso, do mesmo jeito, mas
+       decidimos tratar por estética, para apresentar a senha escolhida ao encerramento do programa.
+                                                                                                            */
+
     std::vector<int> password_divisors = get_divisors(password.size());
 
     password_divisors.pop_back();
@@ -436,6 +443,7 @@ int main(int argc, char *argv[]){
                 std::cin >> decrypt_ok;
                 if(decrypt_ok != 1){
                     std::cout << RED << "\nEscolha um possível tamanho da chave, com base nos N-GRAMAS e IC-VALUES." << RESET << std::endl;
+                    /* Já que errei, escolha o tamanho da chave aí usuário... */
                     user_choose_keysize = true;
                 }
             }
