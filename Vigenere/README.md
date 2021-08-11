@@ -3,15 +3,15 @@ Lucas Dalle Rocha - 17/0016641
 Leonardo Rodrigues de Souza - 170060543  
 
 O programa pode ser compilado pela utilização do Makefile, 
-com o seguinte comando em seu terminal: 
+com o seguinte comando em seu terminal:  
 $ make
 	
-Caso seja de seu interesse compilá-lo manualmente, execute a instrução:
+Caso seja de seu interesse compilá-lo manualmente, execute a instrução:  
 $ g++ -o vigenere.exe main.cpp
 
-Por fim, para execução do programa nos arquivos teste:
-Cifragem -> $ ./vigenere.exe -c <PATH_OF_FILE>
-Decifragem -> $ ./vigenere.exe -d <PATH_OF_FILE>
+Por fim, para execução do programa nos arquivos teste:  
+Cifragem -> $ ./vigenere.exe -c <PATH_OF_FILE>  
+Decifragem -> $ ./vigenere.exe -d <PATH_OF_FILE>  
 
 Acerca das heurísticas utilizadas no ataque à cifra:
 
