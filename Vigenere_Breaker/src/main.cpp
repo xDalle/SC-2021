@@ -50,8 +50,10 @@ std::string encrypt(std::string plaintext, std::string key){
 
     for(char c : plaintext){
         if(c < 'A' || c > 'Z')
+            // Trata a mensagem
             ciphertext.push_back(c);
         else
+            // Cifra -> Tabela de símbolos
             ciphertext.push_back(matrix[(int)(c - 'A') + 1][(int)(key[i++ % key.size()] - 'A') + 1]);
     }
 
@@ -71,8 +73,10 @@ std::string decrypt(std::string ciphertext, std::string key){
 
     for(char c : ciphertext){
         if(c < 'A' || c > 'Z')
+            // Trata o criptograma
             plaintext.push_back(c);
         else
+            // Descrição álgebrica -> Dk(Ci) = (Ci - Ki + 26)mod 26
             plaintext.push_back((((int)c - key[i++ % key.size()] + LETTERS) % LETTERS) + 'A');
     }
 
@@ -82,7 +86,7 @@ std::string decrypt(std::string ciphertext, std::string key){
 /*
     1. Determinar o tamanho da chave
     2. Utilizar análise de frequência para subsets do criptograma
-    3. Agora tenho a chave :)
+    3. Possível chave
 */
 
 /* Retorna divisores de n */
@@ -176,7 +180,9 @@ int get_key_length(std::string ciphertext, bool user_choose_keysize) {
     std::map<char, int> letter_frequency;
     int key_it = 0;
 
-    /* Cálculo do índice de coincidência */
+    /* Cálculo do índice de coincidência, baseado no tamanho do criptograma e frequência das letras. 
+                    https://pages.mtu.edu/~shene/NSF-4/Tutorial/VIG/Vig-IOC.html                      */
+
     for(j = MIN_KEY_LENGTH; j <= MAX_KEY_LENGTH; j++){
         for(i = 0; (unsigned)i < ciphertext_treated.size(); i++){
             separate_key[i % j].push_back(ciphertext_treated[i]);
@@ -273,7 +279,9 @@ std::string decrypt_without_key(std::string ciphertext, bool user_choose_keysize
 
     int coset_iterator = 0;
 
-    /* calcular a partir das chaves separadas o IC de cada um, e verificar se a média é mais próxima de INGLES ou PORTUGUES */
+    /* Calcular a partir das chaves separadas o chi^2 de cada um, e verificar se a média é mais próxima de INGLES ou PORTUGUES 
+                                        https://pages.mtu.edu/~shene/NSF-4/Tutorial/VIG/Vig-Recover.html                        */
+                                        
     for(j = 0; j < key_size; j++){
         chi_square_english[j] = chi_square_portuguese[j] = std::numeric_limits<int>::max();
         index_of_key_english[j] = index_of_key_portuguese[j] = -1;
@@ -435,7 +443,9 @@ int main(int argc, char *argv[]){
         std::cout << GREEN << "\nTexto a ser decifrado:\n" << RESET << ciphertext << std::endl;
         std::transform(ciphertext.begin(), ciphertext.end(), ciphertext.begin(), ::toupper);
         if(alternative_decrypt_key == 1){
-            std::cout << GREEN << "\nMensagem decifrada: " << RESET << decrypt(ciphertext, key) << std::endl;
+            plaintext = decrypt(ciphertext, key);
+            std::transform(plaintext.begin(), plaintext.end(), plaintext.begin(), ::tolower);
+            std::cout << GREEN << "\nMensagem decifrada:\n" << RESET << plaintext << std::endl;
         }else{
             while(decrypt_ok != 1){
                 key = decrypt_without_key(ciphertext, user_choose_keysize);
