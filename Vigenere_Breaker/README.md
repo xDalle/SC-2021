@@ -12,11 +12,11 @@ com o seguinte comando em seu terminal:
 $ make
 	
 Caso seja de seu interesse compilá-lo manualmente, execute a instrução:  
-$ g++ -o vigenere.exe src/main.cpp
+$ g++ -o vigenere src/main.cpp
 
 Por fim, para execução do programa nos arquivos teste:  
-Cifragem -> $ ./vigenere.exe -c tests/<FILE>.txt  
-Decifragem -> $ ./vigenere.exe -d tests/<FILE>.txt  
+Cifragem -> $ ./vigenere -c tests/<FILE>.txt  
+Decifragem -> $ ./vigenere -d tests/<FILE>.txt  
 
 Acerca das heurísticas utilizadas no ataque à cifra:
 
