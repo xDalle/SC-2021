@@ -5,7 +5,7 @@
 #include <iterator>
 #include <algorithm>
 #include <cstdint>
-#define ROUNDS 14
+#define ROUNDS 13
 
 /*
     1- AddRoundKey      1x
@@ -160,6 +160,45 @@ void print_key_matrix(unsigned int (&key_matrix)[ROUNDS+1][4][4], int round){
     }
 }
 
+void sub_bytes(unsigned int (&state_matrix)[4][4], unsigned int sbox[17][17]){
+    int i, j;
+    unsigned int hi, lo;
+    int sbox_row, sbox_column;
+    bool sbox_found = false;
+
+    for(i = 0; i < 4; i++){
+        for(j = 0; j < 4; j++){
+            lo = state_matrix[i][j] & 0x0F;
+            hi = state_matrix[i][j] >> 4;
+            for(sbox_row = 1; sbox_row < 17 && sbox_found == false; sbox_row++){
+                for(sbox_column = 1; sbox_column < 17 && sbox_found == false; sbox_column++){
+                    if(sbox[sbox_row][0] == hi && sbox[0][sbox_column] == lo){
+                        state_matrix[i][j] = sbox[sbox_row][sbox_column];
+                        sbox_found = true;
+                    }
+                }
+            }
+            sbox_found = false;
+        }
+    }
+}
+
+void shift_row(unsigned int (&state_row)[4], int n) {
+    for (int i = 0; i < n; i++) {
+        auto aux = state_row[0];
+        for (int j = 0; j < 3; j++)
+            state_row[j] = state_row[j+1];
+
+        state_row[3] = aux;
+    }
+}
+
+void shift_rows(unsigned int (&state_matrix)[4][4]){
+    for(int i = 1; i < 4; i++) {
+        shift_row(state_matrix[i], i);
+    }   
+}
+
 int main(int argc, char *argv[]){
     std::ifstream file("tests/teste.jpeg", std::ios::binary);
 
@@ -167,7 +206,7 @@ int main(int argc, char *argv[]){
     std::istream_iterator<unsigned char> begin(file), end;
 
     // Reading the file content using the iterator
-    std::vector<unsigned char> buffer(begin,end);
+    std::vector<unsigned int> buffer(begin,end);
 
     int init_index = 0;
     
@@ -181,36 +220,55 @@ int main(int argc, char *argv[]){
         } else it = std::find(++it, buffer.end(), 0xFFU);
     }
 
-    std::copy(buffer.begin() + init_index - 2, buffer.end() + 2, buffer.begin());
+    std::copy(buffer.begin() + init_index, buffer.end() - 2, buffer.begin());
+
+    /* std::cout << "buffer: ";
+    std::cout << std::hex << buffer[1]; */
+
+    // for (unsigned int x: buffer)
+    //     std::cout << std::hex << x << " ";
 
     file.close();
+
     /* resto */
 
     unsigned int sbox[17][17];
     unsigned int sbox_inverse[17][17];
     initialize_sbox(sbox, sbox_inverse);
 
-    print_sbox(sbox);
-    print_sbox(sbox_inverse);
+    //print_sbox(sbox);
+    //print_sbox(sbox_inverse);
 
     unsigned int rcon[15][4];
     initialize_rcon(rcon);
 
-    print_rcon(rcon);
+    //print_rcon(rcon);
 
     unsigned int key_matrix[ROUNDS+1][4][4];
     set_cipher_key_matrix(key_matrix);
 
-    print_key_matrix(key_matrix, 0);
-
+    //print_key_matrix(key_matrix, 0);
     key_expansion(key_matrix, sbox, rcon);
+    //for(int teste = 1; teste != ROUNDS+1; teste++)
+        //print_key_matrix(key_matrix, teste);
 
-    for(int teste = 1; teste != ROUNDS; teste++)
-        print_key_matrix(key_matrix, teste);
+    unsigned int state[4][4];    // actual state (vector 128-bit separation)
+    std::ifstream state_test("src/state_test.txt");
 
-    // unsigned int lo = key_matrix[0][0][0] & 0x0F;
-    // unsigned int hi = key_matrix[0][0][0] >> 4;
-    // std::cout << "\nLo: " << std::hex << lo << std::endl;
-    // std::cout << "\nHi: " << std::hex << hi << std::endl;
+    for(int i = 0; i < 4; i++)
+        for(int j = 0; j < 4; j++)
+            state_test >> std::hex >> state[j][i];
+
+    state_test.close();
+
+    sub_bytes(state, sbox);
+    shift_rows(state);
+    for(int i = 0; i < 4; i++){
+        for(int j = 0; j < 4; j++){
+            std::cout << std::hex << state[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+
     return 0;
 }
