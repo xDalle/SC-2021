@@ -5,6 +5,6 @@ EXECNAME = teste
 
 all: 
 	$(CC) -o $(EXECNAME) $(CTARGET)
-	@echo "Execute using: ./teste {-c, -d} tests/<FILE>.txt"
+	./teste
 	
 clean: $(RM) $(teste.exe)
