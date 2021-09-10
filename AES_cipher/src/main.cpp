@@ -45,14 +45,17 @@ void initialize_sbox(unsigned int (&sbox)[17][17], unsigned int (&sbox_inverse)[
 }
 
 void initialize_rcon(unsigned int (&rcon)[15][4]){
-    int i, j;
-    std::ifstream rcon_file("structures/rcon.txt", std::ios::binary);
+    int i, j, round = 1;
     for(i = 0; i < 15; i++){
-        for(j = 0; j < 4; j++){
-            rcon_file >> std::skipws >> std::hex >> rcon[i][j];
-        }
+        rcon[i][1] = rcon[i][2] = rcon[i][3] = 0x0;
+        if(round == 1)
+            rcon[i][0] = 0x1;
+        else if(round > 1 && rcon[i-1][0] < 0x80)
+            rcon[i][0] = rcon[i-1][0] << 1;
+        else if(round > 1 && rcon[i-1][0] >= 0x80)
+            rcon[i][0] = (rcon[i-1][0] << 1) ^ 0x11B;
+        round++;
     }
-    rcon_file.close();
 }
 
 void print_sbox(unsigned int sbox[17][17]){
