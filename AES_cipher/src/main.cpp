@@ -5,7 +5,7 @@
 #include <iterator>
 #include <algorithm>
 #include <cstdint>
-#define ROUNDS 13
+#define ROUNDS 10
 
 /*
     1- AddRoundKey      1x
@@ -160,6 +160,16 @@ void print_key_matrix(unsigned int (&key_matrix)[ROUNDS+1][4][4], int round){
     }
 }
 
+void print_state_matrix(unsigned int (&state_matrix)[4][4]){
+    int i, j;
+    for(i = 0; i < 4; i++){
+        for(j = 0; j < 4; j++){
+            std::cout << std::hex << state_matrix[i][j] << "\t";
+        }
+        std::cout << std::endl;
+    }
+}
+
 void sub_bytes(unsigned int (&state_matrix)[4][4], unsigned int sbox[17][17]){
     int i, j;
     unsigned int hi, lo;
@@ -184,19 +194,86 @@ void sub_bytes(unsigned int (&state_matrix)[4][4], unsigned int sbox[17][17]){
 }
 
 void shift_row(unsigned int (&state_row)[4], int n) {
-    for (int i = 0; i < n; i++) {
-        auto aux = state_row[0];
-        for (int j = 0; j < 3; j++)
+    int i, j;
+    unsigned int tmp;
+    for(i = 0; i < n; i++){
+        tmp = state_row[0];
+        for (j = 0; j < 3; j++)
             state_row[j] = state_row[j+1];
-
-        state_row[3] = aux;
+        state_row[3] = tmp;
     }
 }
 
 void shift_rows(unsigned int (&state_matrix)[4][4]){
-    for(int i = 1; i < 4; i++) {
+    int i;
+    for(i = 1; i < 4; i++) {
         shift_row(state_matrix[i], i);
     }   
+}
+
+void mix_columns(unsigned int (&state_matrix)[4][4]){
+    unsigned int diffusion_matrix[4][4] = {{0x2, 0x3, 0x1, 0x1},
+                                           {0x1, 0x2, 0x3, 0x1},
+                                           {0x1, 0x1, 0x2, 0x3},
+                                           {0x3, 0x1, 0x1, 0x2}};
+    unsigned int xor_array[4][4];
+    unsigned int hi, tmp;
+    int i, j, k;
+    for(i = 0; i < 4; i++){
+        for(k = 0; k < 4; k++){
+            for(j = 0; j < 4; j++){
+                hi = state_matrix[j][i] >> 4;
+                if(diffusion_matrix[k][j] == 0x2){
+                    xor_array[k][j] = state_matrix[j][i] << 1;
+                    if(hi > 0x7)
+                        xor_array[k][j] ^= 0x11B;
+                }else if(diffusion_matrix[k][j] == 0x3){
+                    tmp = state_matrix[j][i];
+                    xor_array[k][j] = state_matrix[j][i] << 1;
+                    xor_array[k][j] ^= tmp;
+                    if(hi > 0x7)
+                        xor_array[k][j] ^= 0x11B;
+                }else{
+                    xor_array[k][j] = state_matrix[j][i];
+                }
+            }
+        }
+        for(k = 0; k < 4; k++)
+            state_matrix[k][i] = xor_array[k][0] ^ xor_array[k][1] ^ xor_array[k][2] ^ xor_array[k][3];
+    }
+}
+
+void add_round_key(unsigned int (&state_matrix)[4][4], unsigned int (&key_matrix)[ROUNDS+1][4][4], int round){
+    int i, j;
+    for(i = 0; i < 4; i++){
+        for(j = 0; j < 4; j++){
+            state_matrix[j][i] ^= key_matrix[round][j][i];
+        }
+    }
+}
+
+void aes_encrypt(unsigned int (&state_matrix)[4][4], unsigned int (&key_matrix)[ROUNDS+1][4][4], unsigned int sbox[17][17], unsigned int rcon[15][4]){
+    key_expansion(key_matrix, sbox, rcon);
+    
+    add_round_key(state_matrix, key_matrix, 0);
+    print_state_matrix(state_matrix);
+    std::cout << std::endl;
+
+    int i;
+    for(i = 1; i < ROUNDS; i++){
+        sub_bytes(state_matrix, sbox);
+        shift_rows(state_matrix);
+        mix_columns(state_matrix);
+        add_round_key(state_matrix, key_matrix, i);
+        print_state_matrix(state_matrix);
+        std::cout << std::endl;
+    }
+
+    sub_bytes(state_matrix, sbox);
+    shift_rows(state_matrix);
+    add_round_key(state_matrix, key_matrix, ROUNDS);
+    print_state_matrix(state_matrix);
+    std::cout << std::endl;
 }
 
 int main(int argc, char *argv[]){
@@ -248,12 +325,14 @@ int main(int argc, char *argv[]){
     set_cipher_key_matrix(key_matrix);
 
     //print_key_matrix(key_matrix, 0);
-    key_expansion(key_matrix, sbox, rcon);
+
+    //key_expansion(key_matrix, sbox, rcon);
+
     //for(int teste = 1; teste != ROUNDS+1; teste++)
         //print_key_matrix(key_matrix, teste);
 
     unsigned int state[4][4];    // actual state (vector 128-bit separation)
-    std::ifstream state_test("src/state_test.txt");
+    std::ifstream state_test("src/state_test2.txt");
 
     for(int i = 0; i < 4; i++)
         for(int j = 0; j < 4; j++)
@@ -261,14 +340,11 @@ int main(int argc, char *argv[]){
 
     state_test.close();
 
-    sub_bytes(state, sbox);
-    shift_rows(state);
-    for(int i = 0; i < 4; i++){
-        for(int j = 0; j < 4; j++){
-            std::cout << std::hex << state[i][j] << " ";
-        }
-        std::cout << std::endl;
-    }
-
+    // sub_bytes(state, sbox);
+    // shift_rows(state);
+    // mix_columns(state);
+    // print_state_matrix(state);
+    // add_round_key(state, key_matrix, 1);
+    aes_encrypt(state, key_matrix, sbox, rcon);
     return 0;
 }
