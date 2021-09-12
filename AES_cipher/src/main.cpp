@@ -37,7 +37,7 @@ void initialize_sbox(unsigned int (&sbox)[17][17], unsigned int (&sbox_inverse)[
     for (i = 1; i < 17; i++) {
         for (j = 1; j < 17; j++) {
             sbox_file >> std::skipws >> std::hex >> sbox[i][j];
-            sbox_inverse_file >> std::hex >> sbox_inverse[i][j];
+            sbox_inverse_file >> std::skipws >> std::hex >> sbox_inverse[i][j];
         }
     }
     sbox_file.close();
@@ -87,11 +87,11 @@ void print_rcon(unsigned int rcon[15][4]){
 
 void set_cipher_key_matrix(unsigned int (&key_matrix)[ROUNDS+1][4][4]){
     int i, j;
-    std::ifstream key_file("src/key.txt");
+    std::ifstream key_file("src/key.txt", std::ios::binary);
 
     for(i = 0; i < 4; i++)
         for(j = 0; j < 4; j++)
-            key_file >> std::hex >> key_matrix[0][j][i];
+            key_file >> std::skipws >> std::hex >> key_matrix[0][j][i];
 
     key_file.close();
 }
@@ -441,13 +441,13 @@ int main(int argc, char *argv[]){
 
     unsigned int state[4][4];    // actual state (vector 128-bit separation)
     unsigned int kstate[4][4];
-    std::ifstream encrypt_test("src/encrypt_test.txt");
-    std::ifstream decrypt_test("src/decrypt_test.txt");
+    std::ifstream encrypt_test("src/encrypt_test.txt", std::ios::binary);
+    std::ifstream decrypt_test("src/decrypt_test.txt", std::ios::binary);
 
     for(int i = 0; i < 4; i++){
         for(int j = 0; j < 4; j++){
-            encrypt_test >> std::hex >> state[j][i];
-            decrypt_test >> std::hex >> kstate[j][i];
+            encrypt_test >> std::skipws >> std::hex >> state[j][i];
+            decrypt_test >> std::skipws >> std::hex >> kstate[j][i];
         }
     }
     encrypt_test.close();
