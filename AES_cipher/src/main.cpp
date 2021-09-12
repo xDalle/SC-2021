@@ -168,6 +168,7 @@ void print_state_matrix(unsigned int (&state_matrix)[4][4]){
         }
         std::cout << std::endl;
     }
+    std::cout << std::endl;
 }
 
 void sub_bytes(unsigned int (&state_matrix)[4][4], unsigned int sbox[17][17]){
@@ -252,12 +253,98 @@ void add_round_key(unsigned int (&state_matrix)[4][4], unsigned int (&key_matrix
     }
 }
 
-void aes_encrypt(unsigned int (&state_matrix)[4][4], unsigned int (&key_matrix)[ROUNDS+1][4][4], unsigned int sbox[17][17], unsigned int rcon[15][4]){
-    key_expansion(key_matrix, sbox, rcon);
-    
+void inv_shift_row(unsigned int (&state_row)[4], int n) {
+    int i, j;
+    unsigned int tmp;
+    for(i = 0; i < n; i++){
+        tmp = state_row[3];
+        for(j = 3; j > 0; j--)
+            state_row[j] = state_row[j-1];
+        state_row[0] = tmp;
+    }
+}
+
+void inv_shift_rows(unsigned int (&state_matrix)[4][4]){
+    int i;
+    for(i = 1; i < 4; i++) {
+        inv_shift_row(state_matrix[i], i);
+    }   
+}
+
+void inv_mix_columns(unsigned int (&state_matrix)[4][4]){
+    unsigned int diffusion_matrix[4][4] = {{0xe, 0xb, 0xd, 0x9},
+                                           {0x9, 0xe, 0xb, 0xd},
+                                           {0xd, 0x9, 0xe, 0xb},
+                                           {0xb, 0xd, 0x9, 0xe}};
+    unsigned int xor_array[4][4];
+    unsigned int tmp;
+    int i, j, k;
+    for(i = 0; i < 4; i++){
+        for(k = 0; k < 4; k++){
+            for(j = 0; j < 4; j++){
+                if(diffusion_matrix[k][j] == 0x9){
+                    tmp = state_matrix[j][i];
+                    xor_array[k][j] = state_matrix[j][i] << 1;
+                    if(xor_array[k][j] > 0xFF)
+                        xor_array[k][j] ^= 0x11B;
+                    xor_array[k][j] <<= 1;
+                    if(xor_array[k][j] > 0xFF)
+                        xor_array[k][j] ^= 0x11B;
+                    xor_array[k][j] <<= 1;
+                    if(xor_array[k][j] > 0xFF)
+                        xor_array[k][j] ^= 0x11B;
+                    xor_array[k][j] ^= tmp;
+                }else if(diffusion_matrix[k][j] == 0xb){
+                    tmp = state_matrix[j][i];
+                    xor_array[k][j] = state_matrix[j][i] << 1;
+                    if(xor_array[k][j] > 0xFF)
+                        xor_array[k][j] ^= 0x11B;
+                    xor_array[k][j] <<= 1;
+                    if(xor_array[k][j] > 0xFF)
+                        xor_array[k][j] ^= 0x11B;
+                    xor_array[k][j] ^= tmp;
+                    xor_array[k][j] <<= 1;
+                    if(xor_array[k][j] > 0xFF)
+                        xor_array[k][j] ^= 0x11B;
+                    xor_array[k][j] ^= tmp;
+                }else if(diffusion_matrix[k][j] == 0xd){
+                    tmp = state_matrix[j][i];
+                    xor_array[k][j] = state_matrix[j][i] << 1;
+                    if(xor_array[k][j] > 0xFF)
+                        xor_array[k][j] ^= 0x11B;
+                    xor_array[k][j] ^= tmp;
+                    xor_array[k][j] <<= 1;
+                    if(xor_array[k][j] > 0xFF)
+                        xor_array[k][j] ^= 0x11B;
+                    xor_array[k][j] <<= 1;
+                    if(xor_array[k][j] > 0xFF)
+                        xor_array[k][j] ^= 0x11B;
+                    xor_array[k][j] ^= tmp;
+                }else{
+                    tmp = state_matrix[j][i];
+                    xor_array[k][j] = state_matrix[j][i] << 1;
+                    if(xor_array[k][j] > 0xFF)
+                        xor_array[k][j] ^= 0x11B;
+                    xor_array[k][j] ^= tmp;
+                    xor_array[k][j] <<= 1;
+                    if(xor_array[k][j] > 0xFF)
+                        xor_array[k][j] ^= 0x11B;
+                    xor_array[k][j] ^= tmp;
+                    xor_array[k][j] <<= 1;
+                    if(xor_array[k][j] > 0xFF)
+                        xor_array[k][j] ^= 0x11B;
+                }
+            }
+        }
+        for(k = 0; k < 4; k++)
+            state_matrix[k][i] = xor_array[k][0] ^ xor_array[k][1] ^ xor_array[k][2] ^ xor_array[k][3];
+    }
+}
+
+void aes_encrypt(unsigned int (&state_matrix)[4][4], unsigned int (&key_matrix)[ROUNDS+1][4][4], unsigned int sbox[17][17]){
+    print_state_matrix(state_matrix);
     add_round_key(state_matrix, key_matrix, 0);
     print_state_matrix(state_matrix);
-    std::cout << std::endl;
 
     int i;
     for(i = 1; i < ROUNDS; i++){
@@ -266,14 +353,35 @@ void aes_encrypt(unsigned int (&state_matrix)[4][4], unsigned int (&key_matrix)[
         mix_columns(state_matrix);
         add_round_key(state_matrix, key_matrix, i);
         print_state_matrix(state_matrix);
-        std::cout << std::endl;
     }
 
     sub_bytes(state_matrix, sbox);
     shift_rows(state_matrix);
     add_round_key(state_matrix, key_matrix, ROUNDS);
     print_state_matrix(state_matrix);
-    std::cout << std::endl;
+}
+
+void aes_decrypt(unsigned int (&state_matrix)[4][4], unsigned int (&key_matrix)[ROUNDS+1][4][4], unsigned int sbox[17][17]){
+    print_state_matrix(state_matrix);
+    add_round_key(state_matrix, key_matrix, ROUNDS);
+    inv_shift_rows(state_matrix);
+    sub_bytes(state_matrix, sbox);  // reverte sub_bytes com sbox inverso
+    print_state_matrix(state_matrix);
+
+    int i;
+    for(i = ROUNDS-1; i > 0; i--){
+        add_round_key(state_matrix, key_matrix, i);
+        inv_mix_columns(state_matrix);
+        inv_shift_rows(state_matrix);
+        //inv_mix_columns(state_matrix);
+        sub_bytes(state_matrix, sbox);  // reverte sub_bytes com sbox inverso
+        //add_round_key(state_matrix, key_matrix, i);
+        //inv_mix_columns(state_matrix);
+        print_state_matrix(state_matrix);
+    }
+
+    add_round_key(state_matrix, key_matrix, 0);
+    print_state_matrix(state_matrix);
 }
 
 int main(int argc, char *argv[]){
@@ -326,25 +434,36 @@ int main(int argc, char *argv[]){
 
     //print_key_matrix(key_matrix, 0);
 
-    //key_expansion(key_matrix, sbox, rcon);
+    key_expansion(key_matrix, sbox, rcon);
 
     //for(int teste = 1; teste != ROUNDS+1; teste++)
         //print_key_matrix(key_matrix, teste);
 
     unsigned int state[4][4];    // actual state (vector 128-bit separation)
-    std::ifstream state_test("src/state_test2.txt");
+    unsigned int kstate[4][4];
+    std::ifstream encrypt_test("src/encrypt_test.txt");
+    std::ifstream decrypt_test("src/decrypt_test.txt");
 
-    for(int i = 0; i < 4; i++)
-        for(int j = 0; j < 4; j++)
-            state_test >> std::hex >> state[j][i];
-
-    state_test.close();
+    for(int i = 0; i < 4; i++){
+        for(int j = 0; j < 4; j++){
+            encrypt_test >> std::hex >> state[j][i];
+            decrypt_test >> std::hex >> kstate[j][i];
+        }
+    }
+    encrypt_test.close();
+    decrypt_test.close();
 
     // sub_bytes(state, sbox);
     // shift_rows(state);
     // mix_columns(state);
     // print_state_matrix(state);
     // add_round_key(state, key_matrix, 1);
-    aes_encrypt(state, key_matrix, sbox, rcon);
+
+    std::cout << "ENCRYPTING...\n" << std::endl;
+    aes_encrypt(state, key_matrix, sbox);
+
+    std::cout << "DECRYPTING...\n" << std::endl;
+    aes_decrypt(kstate, key_matrix, sbox_inverse);
+
     return 0;
 }
