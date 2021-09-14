@@ -7,12 +7,17 @@
 #include <cstdint>
 #include <string>
 
-#define ROUNDS 10
+#define MAX_ROUNDS 15
+#define RED     "\x1b[31m"
+#define GREEN   "\x1b[32m"
+#define RESET   "\x1b[0m"
+
+auto flagImage = {0x32U, 0x35U, 0x35U};
 
 void initialize_sbox(unsigned int (&sbox)[17][17], unsigned int (&sbox_inverse)[17][17]){
     int i, j;
-    unsigned int rows_and_columns = sbox[0][0] = 0x0;
-    sbox_inverse[0][0] = 0x1;
+    unsigned int rows_and_columns = sbox[0][0] = 0x0U;
+    sbox_inverse[0][0] = 0x1U;
 
     for(i = 1; i < 17; i++){
         sbox[i][0] = sbox[0][i] = sbox_inverse[i][0] = sbox_inverse[0][i] = rows_and_columns++;
@@ -34,20 +39,20 @@ void initialize_sbox(unsigned int (&sbox)[17][17], unsigned int (&sbox_inverse)[
 void initialize_rcon(unsigned int (&rcon)[15][4]){
     int i, j, round = 1;
     for(i = 0; i < 15; i++){
-        rcon[i][1] = rcon[i][2] = rcon[i][3] = 0x0;
+        rcon[i][1] = rcon[i][2] = rcon[i][3] = 0x0U;
         if(round == 1)
-            rcon[i][0] = 0x1;
-        else if(round > 1 && rcon[i-1][0] < 0x80)
+            rcon[i][0] = 0x1U;
+        else if(round > 1 && rcon[i-1][0] < 0x80U)
             rcon[i][0] = rcon[i-1][0] << 1;
-        else if(round > 1 && rcon[i-1][0] >= 0x80)
-            rcon[i][0] = (rcon[i-1][0] << 1) ^ 0x11B;
+        else if(round > 1 && rcon[i-1][0] >= 0x80U)
+            rcon[i][0] = (rcon[i-1][0] << 1) ^ 0x11BU;
         round++;
     }
 }
 
 void print_sbox(unsigned int sbox[17][17]){
     int i, j;
-    if(sbox[0][0] == 0x0)
+    if(sbox[0][0] == 0x0U)
         std::cout << "\nS-BOX:" << std::endl;
     else
         std::cout << "\nINVERSE S-BOX:" << std::endl;
@@ -72,7 +77,7 @@ void print_rcon(unsigned int rcon[15][4]){
     }
 }
 
-int set_cipher_key_matrix(unsigned int (&key_matrix)[ROUNDS+1][4][4], char *key_argv){
+int set_cipher_key_matrix(unsigned int (&key_matrix)[MAX_ROUNDS+1][4][4], char *key_argv){
     std::string key = key_argv;
     bool invalid_char = false;
     int i, j, key_it = 0;
@@ -81,24 +86,29 @@ int set_cipher_key_matrix(unsigned int (&key_matrix)[ROUNDS+1][4][4], char *key_
     unsigned int key_array[16];
 
     if(key.size() != 32){
-        std::cout << "Key size must be 32 [128-bit]." << std::endl;
+        std::cout << RED << "Key error. Key size must be 32 [128-bit]." << RESET << std::endl;
         return -1;
     }
 
     for(i = 0; i < key.size(); i++){
         if(key[i] < 48){    //inferior a zero em ascii
-            std::cout << "Invalid character passed at key, It should be [0-9A-Fa-f]." << std::endl;
-            return -1;
+            invalid_char = true;
+            break;
         }else if(key[i] > 57 && key[i] < 65){   //inferior a A em ascii
-            std::cout << "Invalid character passed at key, It should be [0-9A-Fa-f]." << std::endl;
-            return -1;
+            invalid_char = true;
+            break;
         }else if(key[i] > 70 && key[i] < 97){   // maior que F, mas menor que a
-            std::cout << "Invalid character passed at key, It should be [0-9A-Fa-f]." << std::endl;
-            return -1;
+            invalid_char = true;
+            break;
         }else if(key[i] > 102){ // maior que f
-            std::cout << "Invalid character passed at key, It should be [0-9A-Fa-f]." << std::endl;
-            return -1;
+            invalid_char = true;
+            break;
         }
+    }
+    
+    if(invalid_char){
+        std::cout << RED << "Key error. Invalid character detected, it should be [0-9A-Fa-f]." << RESET << std::endl;
+        return -1;
     }
 
     for(i = 0; i < key.size(); i+=2){
@@ -117,7 +127,8 @@ int set_cipher_key_matrix(unsigned int (&key_matrix)[ROUNDS+1][4][4], char *key_
     return 0;
 }
 
-void key_expansion(unsigned int (&key_matrix)[ROUNDS+1][4][4], unsigned int sbox[17][17], unsigned int rcon[15][4]){
+void key_expansion(unsigned int (&key_matrix)[MAX_ROUNDS+1][4][4], unsigned int sbox[17][17], unsigned int rcon[15][4], int ROUNDS){
+    std::cout << "Expanding initial key to " << GREEN << ROUNDS << RESET << " other keys..." << std::endl;
     int i, j, k;
     int sbox_row, sbox_column;
     unsigned int hi, lo;
@@ -132,7 +143,7 @@ void key_expansion(unsigned int (&key_matrix)[ROUNDS+1][4][4], unsigned int sbox
 
         for(i = 0; i < 4; i++){
             key_matrix[k+1][i][3] = tmp[(i+1)%4];   // rotate word
-            lo = key_matrix[k+1][i][3] & 0x0F;
+            lo = key_matrix[k+1][i][3] & 0x0FU;
             hi = key_matrix[k+1][i][3] >> 4;
             for(sbox_row = 1; sbox_row < 17 && sbox_found == false; sbox_row++){
                 for(sbox_column = 1; sbox_column < 17 && sbox_found == false; sbox_column++){
@@ -161,7 +172,7 @@ void key_expansion(unsigned int (&key_matrix)[ROUNDS+1][4][4], unsigned int sbox
     }
 }
 
-void print_key_matrix(unsigned int (&key_matrix)[ROUNDS+1][4][4], int round){
+void print_key_matrix(unsigned int (&key_matrix)[MAX_ROUNDS+1][4][4], int round){
     if(round == 0){
         std::cout << "\nINITIAL KEY MATRIX [0]: " << std::endl;
             for(int i = 0; i < 4; i++){
@@ -200,7 +211,7 @@ void sub_bytes(unsigned int (&state_matrix)[4][4], unsigned int sbox[17][17]){
 
     for(i = 0; i < 4; i++){
         for(j = 0; j < 4; j++){
-            lo = state_matrix[i][j] & 0x0F;
+            lo = state_matrix[i][j] & 0x0FU;
             hi = state_matrix[i][j] >> 4;
             for(sbox_row = 1; sbox_row < 17 && sbox_found == false; sbox_row++){
                 for(sbox_column = 1; sbox_column < 17 && sbox_found == false; sbox_column++){
@@ -234,10 +245,10 @@ void shift_rows(unsigned int (&state_matrix)[4][4]){
 }
 
 void mix_columns(unsigned int (&state_matrix)[4][4]){
-    unsigned int diffusion_matrix[4][4] = {{0x2, 0x3, 0x1, 0x1},
-                                           {0x1, 0x2, 0x3, 0x1},
-                                           {0x1, 0x1, 0x2, 0x3},
-                                           {0x3, 0x1, 0x1, 0x2}};
+    unsigned int diffusion_matrix[4][4] = {{0x2U, 0x3U, 0x1U, 0x1U},
+                                           {0x1U, 0x2U, 0x3U, 0x1U},
+                                           {0x1U, 0x1U, 0x2U, 0x3U},
+                                           {0x3U, 0x1U, 0x1U, 0x2U}};
     unsigned int xor_array[4][4];
     unsigned int hi, tmp;
     int i, j, k;
@@ -245,16 +256,16 @@ void mix_columns(unsigned int (&state_matrix)[4][4]){
         for(k = 0; k < 4; k++){
             for(j = 0; j < 4; j++){
                 hi = state_matrix[j][i] >> 4;
-                if(diffusion_matrix[k][j] == 0x2){
+                if(diffusion_matrix[k][j] == 0x2U){
                     xor_array[k][j] = state_matrix[j][i] << 1;
-                    if(hi > 0x7)
-                        xor_array[k][j] ^= 0x11B;
-                }else if(diffusion_matrix[k][j] == 0x3){
+                    if(hi > 0x7U)
+                        xor_array[k][j] ^= 0x11BU;
+                }else if(diffusion_matrix[k][j] == 0x3U){
                     tmp = state_matrix[j][i];
                     xor_array[k][j] = state_matrix[j][i] << 1;
                     xor_array[k][j] ^= tmp;
-                    if(hi > 0x7)
-                        xor_array[k][j] ^= 0x11B;
+                    if(hi > 0x7U)
+                        xor_array[k][j] ^= 0x11BU;
                 }else{
                     xor_array[k][j] = state_matrix[j][i];
                 }
@@ -265,7 +276,7 @@ void mix_columns(unsigned int (&state_matrix)[4][4]){
     }
 }
 
-void add_round_key(unsigned int (&state_matrix)[4][4], unsigned int (&key_matrix)[ROUNDS+1][4][4], int round){
+void add_round_key(unsigned int (&state_matrix)[4][4], unsigned int (&key_matrix)[MAX_ROUNDS+1][4][4], int round){
     int i, j;
     for(i = 0; i < 4; i++){
         for(j = 0; j < 4; j++){
@@ -293,67 +304,67 @@ void inv_shift_rows(unsigned int (&state_matrix)[4][4]){
 }
 
 void inv_mix_columns(unsigned int (&state_matrix)[4][4]){
-    unsigned int diffusion_matrix[4][4] = {{0xe, 0xb, 0xd, 0x9},
-                                           {0x9, 0xe, 0xb, 0xd},
-                                           {0xd, 0x9, 0xe, 0xb},
-                                           {0xb, 0xd, 0x9, 0xe}};
+    unsigned int diffusion_matrix[4][4] = {{0xeU, 0xbU, 0xdU, 0x9U},
+                                           {0x9U, 0xeU, 0xbU, 0xdU},
+                                           {0xdU, 0x9U, 0xeU, 0xbU},
+                                           {0xbU, 0xdU, 0x9U, 0xeU}};
     unsigned int xor_array[4][4];
     unsigned int tmp;
     int i, j, k;
     for(i = 0; i < 4; i++){
         for(k = 0; k < 4; k++){
             for(j = 0; j < 4; j++){
-                if(diffusion_matrix[k][j] == 0x9){
+                if(diffusion_matrix[k][j] == 0x9U){
                     tmp = state_matrix[j][i];
                     xor_array[k][j] = state_matrix[j][i] << 1;
-                    if(xor_array[k][j] > 0xFF)
-                        xor_array[k][j] ^= 0x11B;
+                    if(xor_array[k][j] > 0xFFU)
+                        xor_array[k][j] ^= 0x11BU;
                     xor_array[k][j] <<= 1;
-                    if(xor_array[k][j] > 0xFF)
-                        xor_array[k][j] ^= 0x11B;
+                    if(xor_array[k][j] > 0xFFU)
+                        xor_array[k][j] ^= 0x11BU;
                     xor_array[k][j] <<= 1;
-                    if(xor_array[k][j] > 0xFF)
-                        xor_array[k][j] ^= 0x11B;
+                    if(xor_array[k][j] > 0xFFU)
+                        xor_array[k][j] ^= 0x11BU;
                     xor_array[k][j] ^= tmp;
-                }else if(diffusion_matrix[k][j] == 0xb){
+                }else if(diffusion_matrix[k][j] == 0xbU){
                     tmp = state_matrix[j][i];
                     xor_array[k][j] = state_matrix[j][i] << 1;
-                    if(xor_array[k][j] > 0xFF)
-                        xor_array[k][j] ^= 0x11B;
+                    if(xor_array[k][j] > 0xFFU)
+                        xor_array[k][j] ^= 0x11BU;
                     xor_array[k][j] <<= 1;
-                    if(xor_array[k][j] > 0xFF)
-                        xor_array[k][j] ^= 0x11B;
+                    if(xor_array[k][j] > 0xFFU)
+                        xor_array[k][j] ^= 0x11BU;
                     xor_array[k][j] ^= tmp;
                     xor_array[k][j] <<= 1;
-                    if(xor_array[k][j] > 0xFF)
-                        xor_array[k][j] ^= 0x11B;
+                    if(xor_array[k][j] > 0xFFU)
+                        xor_array[k][j] ^= 0x11BU;
                     xor_array[k][j] ^= tmp;
-                }else if(diffusion_matrix[k][j] == 0xd){
+                }else if(diffusion_matrix[k][j] == 0xdU){
                     tmp = state_matrix[j][i];
                     xor_array[k][j] = state_matrix[j][i] << 1;
-                    if(xor_array[k][j] > 0xFF)
-                        xor_array[k][j] ^= 0x11B;
+                    if(xor_array[k][j] > 0xFFU)
+                        xor_array[k][j] ^= 0x11BU;
                     xor_array[k][j] ^= tmp;
                     xor_array[k][j] <<= 1;
-                    if(xor_array[k][j] > 0xFF)
-                        xor_array[k][j] ^= 0x11B;
+                    if(xor_array[k][j] > 0xFFU)
+                        xor_array[k][j] ^= 0x11BU;
                     xor_array[k][j] <<= 1;
-                    if(xor_array[k][j] > 0xFF)
-                        xor_array[k][j] ^= 0x11B;
+                    if(xor_array[k][j] > 0xFFU)
+                        xor_array[k][j] ^= 0x11BU;
                     xor_array[k][j] ^= tmp;
                 }else{
                     tmp = state_matrix[j][i];
                     xor_array[k][j] = state_matrix[j][i] << 1;
-                    if(xor_array[k][j] > 0xFF)
-                        xor_array[k][j] ^= 0x11B;
+                    if(xor_array[k][j] > 0xFFU)
+                        xor_array[k][j] ^= 0x11BU;
                     xor_array[k][j] ^= tmp;
                     xor_array[k][j] <<= 1;
-                    if(xor_array[k][j] > 0xFF)
-                        xor_array[k][j] ^= 0x11B;
+                    if(xor_array[k][j] > 0xFFU)
+                        xor_array[k][j] ^= 0x11BU;
                     xor_array[k][j] ^= tmp;
                     xor_array[k][j] <<= 1;
-                    if(xor_array[k][j] > 0xFF)
-                        xor_array[k][j] ^= 0x11B;
+                    if(xor_array[k][j] > 0xFFU)
+                        xor_array[k][j] ^= 0x11BU;
                 }
             }
         }
@@ -362,7 +373,7 @@ void inv_mix_columns(unsigned int (&state_matrix)[4][4]){
     }
 }
 
-void aes_encrypt(unsigned int (&state_matrix)[4][4], unsigned int (&key_matrix)[ROUNDS+1][4][4], unsigned int sbox[17][17]){
+void aes_encrypt(unsigned int (&state_matrix)[4][4], unsigned int (&key_matrix)[MAX_ROUNDS+1][4][4], unsigned int sbox[17][17], int ROUNDS){
     //print_state_matrix(state_matrix);
     add_round_key(state_matrix, key_matrix, 0);
     //print_state_matrix(state_matrix);
@@ -379,22 +390,15 @@ void aes_encrypt(unsigned int (&state_matrix)[4][4], unsigned int (&key_matrix)[
     sub_bytes(state_matrix, sbox);
     shift_rows(state_matrix);
     add_round_key(state_matrix, key_matrix, ROUNDS);
-    for(i = 0; i < 4; i++){
-        for(j = 0; j < 4; j++){
-            if(state_matrix[j][i] == 0xD9 || state_matrix[j][i] == 0xDA){
-                state_matrix[j][i] = 0x0;
-            }
-        }
-    }
     //print_state_matrix(state_matrix);
 }
 
-void aes_decrypt(unsigned int (&state_matrix)[4][4], unsigned int (&key_matrix)[ROUNDS+1][4][4], unsigned int sbox_inverse[17][17]){
-    print_state_matrix(state_matrix);
+void aes_decrypt(unsigned int (&state_matrix)[4][4], unsigned int (&key_matrix)[MAX_ROUNDS+1][4][4], unsigned int sbox_inverse[17][17], int ROUNDS){
+    //print_state_matrix(state_matrix);
     add_round_key(state_matrix, key_matrix, ROUNDS);
     inv_shift_rows(state_matrix);
     sub_bytes(state_matrix, sbox_inverse);  // reverte sub_bytes com sbox inverso
-    print_state_matrix(state_matrix);
+    //print_state_matrix(state_matrix);
 
     int i;
     for(i = ROUNDS-1; i > 0; i--){
@@ -402,19 +406,176 @@ void aes_decrypt(unsigned int (&state_matrix)[4][4], unsigned int (&key_matrix)[
         inv_mix_columns(state_matrix);
         inv_shift_rows(state_matrix);
         sub_bytes(state_matrix, sbox_inverse);  // reverte sub_bytes com sbox inverso
-        print_state_matrix(state_matrix);
+        //print_state_matrix(state_matrix);
     }
 
     add_round_key(state_matrix, key_matrix, 0);
-    print_state_matrix(state_matrix);
+    //print_state_matrix(state_matrix);
+}
+
+void ctr_encrypt_decrypt(unsigned int (&state_matrix)[4][4], unsigned int (&key_matrix)[MAX_ROUNDS+1][4][4], unsigned int sbox[17][17], int ROUNDS){
+    int i, j;
+    static unsigned int counter_matrix[4][4] = {{0x0U, 0x0U, 0x0U, 0x0U},
+                                                {0x0U, 0x0U, 0x0U, 0x0U},
+                                                {0x0U, 0x0U, 0x0U, 0x0U},
+                                                {0x0U, 0x0U, 0x0U, 0x0U}};
+    unsigned int counter_aux[4][4];
+
+    for(i = 0; i < 4; i++){
+        for(j = 0; j < 4; j++){
+            counter_aux[j][i] = counter_matrix[j][i];
+        }
+    }
+
+    //print_state_matrix(state_matrix);
+    add_round_key(counter_aux, key_matrix, 0);
+    //print_state_matrix(state_matrix);
+
+    for(i = 1; i < ROUNDS; i++){
+        sub_bytes(counter_aux, sbox);
+        shift_rows(counter_aux);
+        mix_columns(counter_aux);
+        add_round_key(counter_aux, key_matrix, i);
+        //print_state_matrix(state_matrix);
+    }
+
+    sub_bytes(counter_aux, sbox);
+    shift_rows(counter_aux);
+    add_round_key(counter_aux, key_matrix, ROUNDS);
+
+    for(i = 0; i < 4; i++)
+        for(j = 0; j < 4; j++)
+            state_matrix[j][i] ^= counter_aux[j][i];
+
+    bool incremented = false;
+    for(i = 3; i >= 0 && incremented == false; i--){
+        for(j = 3; j >= 0 && incremented == false; j--){
+            if(counter_matrix[j][i] != 0xFFU){
+                counter_matrix[j][i]+= 0x01U;
+                incremented = true;
+            }
+        }
+    }
+    //print_state_matrix(state_matrix);
+}
+
+int find_sequence_of_bytes(std::vector<unsigned int> buffer, std::vector<unsigned int> bytes) {
+    auto it = std::search(buffer.begin(), buffer.end(), bytes.begin(), bytes.end());
+    return it - buffer.begin();
+}
+
+char* getCmdOption(char ** begin, char ** end, const std::string & option){
+    char ** itr = std::find(begin, end, option);
+    if (itr != end && ++itr != end){
+        return *itr;
+    }
+    return 0;
+}
+
+bool cmdOptionExists(char** begin, char** end, const std::string& option){
+    return std::find(begin, end, option) != end;
 }
 
 int main(int argc, char *argv[]){
-    std::ifstream file("tests/br.jpeg", std::ios::binary);
-    std::ofstream file_out("tests/out.jpeg", std::ios::trunc | std::ios::binary);
+    char* key;
+    char* num_rounds;
+    char* filename;
+    char* outfilename;
+    bool encrypt_exists = false;
+    bool decrypt_exists = false;
+    bool filename_exists = false;
+    bool outfilename_exists = false;
+    bool ecb_exists = false;
+    bool ctr_exists = false;
+    bool enc_or_dec = true;    // enc = 1 , dec = 0
+    int alt_mode = 0;          // raw AES = 0, ecb = 1, ctr = 2
 
-    // Prepare iterator pairs to iterate the file content
-    //std::istream_iterator<unsigned char> begin(file), end;
+    if(cmdOptionExists(argv, argv+argc, "-c")){
+        key = getCmdOption(argv, argv + argc, "-c");
+        encrypt_exists = true;
+    }
+    
+    if(cmdOptionExists(argv, argv+argc, "-d")){
+        key = getCmdOption(argv, argv + argc, "-d");
+        decrypt_exists = true;
+        enc_or_dec = false;
+    }
+    
+    if(cmdOptionExists(argv, argv+argc, "-f")){
+        filename = getCmdOption(argv, argv + argc, "-f");
+        filename_exists = true;
+    }
+    
+    if(cmdOptionExists(argv, argv+argc, "-o")){
+        outfilename = getCmdOption(argv, argv + argc, "-o");
+        outfilename_exists = true;
+    }
+
+    if(!(encrypt_exists || decrypt_exists) || (encrypt_exists && decrypt_exists)){
+        std::cout << RED << "Invalid action. Please insert a valid [-c/-d] <KEY> as argument." << RESET << std::endl;
+        return -1;
+    }
+    
+    if(!filename_exists){
+        std::cout << RED << "Invalid action. Please insert '-f' as argument." << RESET << std::endl;
+        return -1;
+    }
+
+    if(!outfilename_exists){
+        std::cout << RED << "Invalid action. Please insert '-o' as argument." << RESET << std::endl;
+        return -1;
+    }
+
+    if(cmdOptionExists(argv, argv+argc, "-ecb")){
+        num_rounds = getCmdOption(argv, argv + argc, "-ecb");
+        ecb_exists = true;
+        alt_mode = 1;
+    }
+    
+    if(cmdOptionExists(argv, argv+argc, "-ctr")){
+        num_rounds = getCmdOption(argv, argv + argc, "-ctr");
+        ctr_exists = true;
+        alt_mode = 2;
+    }
+
+    if(!(ecb_exists || ctr_exists) || (ecb_exists && ctr_exists)){
+        std::cout << RED << "Invalid action. Please insert '-ecb' or '-ctr' as argument, but not both." << RESET << std::endl;
+        return -1;
+    }
+    
+    std::ifstream file(filename, std::ios::binary);
+    
+    if(!file.is_open()){
+        std::cout << RED << "Invalid source file. Please insert a valid -f <PATH_TO_SOURCE>." << RESET << std::endl;
+        return -1;
+    }
+    
+    if(num_rounds == NULL){
+        std::cout << RED << "Invalid number of rounds. Please insert number desired." << RESET << std::endl;
+        return -1;
+    }
+
+    const int ROUNDS = std::stoi(num_rounds);
+    if(ROUNDS < 1 || ROUNDS > MAX_ROUNDS){
+        std::cout << RED << "Rounds out of scope. Please insert a valid number of rounds [1-15]." << RESET << std::endl;
+        return -1;
+    }
+
+    std::ofstream file_out(outfilename, std::ios::trunc | std::ios::binary);
+
+    /* Finalizada análise de erro nos argumentos... */
+
+    if(enc_or_dec)
+        std::cout << "Encrypting " << GREEN << filename << RESET << " with key " << GREEN << "0x" << key << RESET << std::endl;
+    else
+        std::cout << "Decrypting " << GREEN << filename << RESET << " with key " << GREEN << "0x" << key << RESET << std::endl;
+
+    if(ecb_exists)
+        std::cout << "Using " << GREEN << "ECB" << RESET << " mode with " << GREEN << num_rounds << RESET << " rounds.\n" << std::endl;
+    else
+        std::cout << "Using " << GREEN << "CTR" << RESET << " mode with " << GREEN << num_rounds << RESET << " rounds.\n" << std::endl;
+
+    // Input image
     std::vector<unsigned int> image; 
 
     // Reading the file content using the iterator
@@ -422,152 +583,97 @@ int main(int argc, char *argv[]){
     while(file >> std::noskipws >> byte_from_file)
         image.push_back((unsigned int)byte_from_file);
     
-    int init_index = 0;
-    auto it = std::find(image.begin(), image.end(), 0xFFU);
-    while(it < image.end()) {
-        int i = it - image.begin();
+    int init_index = find_sequence_of_bytes(image, flagImage);  // Find integer 255 (max-color in ppm)
 
-        if (image[i + 1] == 0xDAU) {
-            init_index = i + 2;
-            break;
-        } else it = std::find(++it, image.end(), 0xFFU);
-    }
+    if(init_index >= image.size())
+        return 1;
+    
+    init_index += flagImage.size() + 1; // Get next byte (after the integer sequence 255 and line feed)
 
-    std::vector<unsigned int> buffer(image.begin() + init_index, image.end() - 2);
-    std::vector<unsigned int> encrypted_image(image.begin(), image.begin() + init_index);
+    std::vector<unsigned int> buffer(image.begin() + init_index, image.end());  // Ignoring header in buffer
+    std::vector<unsigned int> encrypted_image(image.begin(), image.begin() + init_index);   // Passing the header to encrypted image
 
     unsigned int sbox[17][17];
     unsigned int sbox_inverse[17][17];
-    initialize_sbox(sbox, sbox_inverse);
+    initialize_sbox(sbox, sbox_inverse);    // Initialize both s-box and inverse s-box (encrypt/decrypt allowed)
 
     unsigned int rcon[15][4];
-    initialize_rcon(rcon);
+    initialize_rcon(rcon);  // Initialize round constants
 
-    unsigned int key_matrix[ROUNDS+1][4][4];
+    unsigned int key_matrix[MAX_ROUNDS+1][4][4];
     
-    if(set_cipher_key_matrix(key_matrix, argv[1]) == -1){
-        return 1;
+    if(set_cipher_key_matrix(key_matrix, key) == -1){
+        return 1;   // If error at key...
     }
 
-    key_expansion(key_matrix, sbox, rcon);
+    key_expansion(key_matrix, sbox, rcon, ROUNDS);  // Expanding keys...
     
+    int total_buffer_size = buffer.size();
+    float percent = 0.001;
+    unsigned int counter_matrix[4][4] = {{0x0U, 0x0U, 0x0U, 0x0U},
+                                         {0x0U, 0x0U, 0x0U, 0x0U},
+                                         {0x0U, 0x0U, 0x0U, 0x0U},
+                                         {0x0U, 0x0U, 0x0U, 0x0U}};
+
     while (buffer.size() > 0) {
-        int it = 0, remover = 0;
+        int it = 0, padding_bytes = 0;
         while (buffer.size() < 16) {
-            remover++;
-            buffer.push_back(0x00U);
+            padding_bytes++;
+            buffer.push_back(0x00U);    // Padding bytes
         }
         unsigned int matrix[4][4];
-        /*unsigned int matrix[4][4] = {buffer[0], buffer[4], buffer[8], buffer[12]
-                                    , buffer[1], buffer[5], buffer[9], buffer[13]
-                                    , buffer[2], buffer[6], buffer[10], buffer[14]
-                                    , buffer[3], buffer[7], buffer[11], buffer[15]};*/
         
         for(int i = 0; i < 4; i++){
             for(int j = 0; j < 4; j++){
-                matrix[j][i] = buffer[it++];
+                matrix[j][i] = buffer[it++];    // Get 16 bytes each iteration
             }
         }
-        it = 0;
-        aes_encrypt(matrix, key_matrix, sbox);
 
+        if(enc_or_dec){
+            if(total_buffer_size - buffer.size() > percent * total_buffer_size){   // Don't want to spam your terminal...
+                std::cout << "Encrypting " << GREEN << "[" << (int)(percent*100) << "%]" << RESET << " ..." << std::endl;
+                percent+= 0.01;
+            }
+            if(alt_mode == 1)
+                aes_encrypt(matrix, key_matrix, sbox, ROUNDS);  // Common ECB
+            else if(alt_mode == 2)
+                ctr_encrypt_decrypt(matrix, key_matrix, sbox, ROUNDS);  // CTR easy encrypt/decrypt
+        }
+        else{
+            if(total_buffer_size - buffer.size() > percent * total_buffer_size){   // Don't want to spam your terminal...
+                std::cout << "Decrypting " << GREEN << "[" << (int)(percent*100) << "%]" << RESET << " ..." << std::endl;
+                percent+= 0.01;
+            }
+            if(alt_mode == 1)
+                aes_decrypt(matrix, key_matrix, sbox_inverse, ROUNDS);  // Common ECB
+            else if(alt_mode == 2)
+                ctr_encrypt_decrypt(matrix, key_matrix, sbox, ROUNDS);  // CTR easy encrypt/decrypt
+        }
         std::vector<unsigned int> aux;
         for(int i = 0; i < 4; i++){
             for(int j = 0; j < 4; j++){
-                aux.push_back(matrix[j][i]);
+                aux.push_back(matrix[j][i]);    // Save encrypted/decrypted bytes
             }
         }
         
-        buffer.erase(buffer.begin(), buffer.begin() + 16);
-        aux.erase(aux.end() - remover, aux.end());
+        buffer.erase(buffer.begin(), buffer.begin() + 16);  // Remove 16 bytes from buffer
+        aux.erase(aux.end() - padding_bytes, aux.end());  // Control padding bytes (remove if exists)
         encrypted_image.insert(encrypted_image.end(), aux.begin(), aux.end());
-        aux.clear();
         //break;
-    }   
-
-    encrypted_image.push_back(0xFFU);
-    encrypted_image.push_back(0xD9U);
-    //std::cout << std::hex << 0x0CU << std::endl;
-
-    //std::cout << "image size: " << image.size() << ", encrypted size: " <<  encrypted_image.size() << std::endl;
-
-    for (unsigned int x: encrypted_image) {
-        std::cout << std::hex << x << " ";
-        file_out << (unsigned char) x;
     }
+
+    if(enc_or_dec){
+        std::cout << "Encrypting " << GREEN << "[" << (int)(percent*100) << "%]" << RESET << " ..." << std::endl;
+        std::cout << "Encryption finished! Encrypted image stored at: " << GREEN << outfilename << RESET << std::endl;
+    }else{
+        std::cout << "Decrypting " << GREEN << "[" << (int)(percent*100) << "%]" << RESET << " ..." << std::endl;
+        std::cout << "Decryption finished! Decrypted image stored at: " << GREEN << outfilename << RESET << std::endl;
+    }
+
+    for(unsigned int x: encrypted_image)
+        file_out << (unsigned char)x;       // Save output
 
     file_out.close();
-
-    //std::cout << "buffer: " << std::dec << buffer.size() << std::endl;
-    //std::cout << std::hex << buffer[450824] << std::endl;
-
-    //unsigned char char_of_file;
-    //std::fstream debug("tests/debug.txt");
-
-    /* std::string image_data;
-    std::string image_data_encrypted;
-    while(file >> std::noskipws >> char_of_file){
-        image_data.push_back(char_of_file);
-        debug << std::hex << (unsigned int)char_of_file;
-    }
-
-    std::ofstream image_encrypted("tests/out.jpeg", std::ios::trunc | std::ios::binary);
-    
-    for(int i = 0; i < image_data.size(); i++){
-        if (image_data[i] == (unsigned char)0xFFU) {
-            std::cout << "index: " << i << std::endl;
-        }
-        //image_encrypted << (unsigned char)image_data[i]; 
-    }
-
-    image_encrypted.close(); */
-
-    /* resto */
-
-    // unsigned int sbox[17][17];
-    // unsigned int sbox_inverse[17][17];
-    // initialize_sbox(sbox, sbox_inverse);
-
-    //print_sbox(sbox);
-    //print_sbox(sbox_inverse);
-
-    // unsigned int rcon[15][4];
-    // initialize_rcon(rcon);
-
-    //print_rcon(rcon);
-    
-    // unsigned int key_matrix[ROUNDS+1][4][4];
-    
-    // if(set_cipher_key_matrix(key_matrix, argv[1]) == -1){
-    //     return 1;
-    // }
-
-    //print_key_matrix(key_matrix, 0);
-
-    //key_expansion(key_matrix, sbox, rcon);
-
-    //for(int teste = 1; teste != ROUNDS+1; teste++)
-        //print_key_matrix(key_matrix, teste);
-
-    //unsigned int state[4][4];    // actual state (vector 128-bit separation)
-    // unsigned int kstate[4][4];
-    //std::ifstream encrypt_test("src/encrypt_test.txt", std::ios::binary);
-    // std::ifstream decrypt_test("src/decrypt_test.txt", std::ios::binary);
-
-    // for(int i = 0; i < 4; i++){
-    //      for(int j = 0; j < 4; j++){
-    //          encrypt_test >> std::skipws >> std::hex >> state[j][i];
-    //          //decrypt_test >> std::skipws >> std::hex >> kstate[j][i];
-    //      }
-    // }
-    // encrypt_test.close();
-    // decrypt_test.close();
-
-    //std::cout << "AES ENCRYPTING...\n" << std::endl;
-    //aes_encrypt(state, key_matrix, sbox);
-
-    //std::cout << "AES DECRYPTING...\n" << std::endl;
-    //aes_decrypt(kstate, key_matrix, sbox_inverse);
 
     return 0;
 }
